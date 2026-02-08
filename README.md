@@ -17,7 +17,7 @@
 
 ### 📸 Interface Preview
 <p align="center">
-  <img src="Screenshot 2026-02-08 211301.jpg" width="850" alt="AniLust Dashboard Preview">
+  <img src="Screenshot 2026-02-08 211301.png" width="850" alt="AniLust Dashboard Preview">
 </p>
 
 ---
@@ -39,20 +39,6 @@
 ---
 
 ## 🚀 Getting Started
-1.  **Clone the Repo**
-    ```bash
-    git clone [https://github.com/tejasrajkumars/AniLust.git](https://github.com/tejasrajkumars/AniLust.git)
-    ```
-2.  **Run the App**
-    Simply open `index.html` in your browser.
-
----
-
-## 👤 Author
-**Tejas Rajkumar**
-* GitHub: [@tejasrajkumars](https://github.com/tejasrajkumars)
-
----
-<p align="center">
-  Explore the Multiverse with AniLust.
-</p>
+1. **Clone the Repo**
+   ```bash
+   git clone [https://github.com/tejasrajkumars/AniLust.git](https://github.com/tejasrajkumars/AniLust.git)
