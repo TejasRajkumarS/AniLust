@@ -5,9 +5,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/stars/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="Stars">
-  <img src="https://img.shields.io/github/forks/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="Forks">
-  <img src="https://img.shields.io/github/license/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="License">
+  <img src="https://img.shields.io/github/stars/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="Stars Badge">
+  <img src="https://img.shields.io/github/forks/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="Forks Badge">
+  <img src="https://img.shields.io/github/license/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="License Badge">
 </p>
 
 ---
@@ -17,7 +17,7 @@
 
 ### 📸 Interface Preview
 <p align="center">
-  <img src="https://github.com/tejasrajkumars/AniLust/blob/main/Screenshot%202026-02-08%20211301.jpg?raw=true" width="850" alt="AniLust Dashboard Preview">
+  <img src="Screenshot 2026-02-08 211301.jpg" width="850" alt="AniLust Dashboard Preview">
 </p>
 
 ---
