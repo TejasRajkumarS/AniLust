@@ -1,58 +1,58 @@
-# <p align="center">🌸 AniLust 🌸</p>
+# <p align="center">📺 AniLust 📺</p>
 
 <p align="center">
-  <img src="https://capsule-render.vercel.app/render?type=waving&color=0b0c10&height=250&section=header&text=AniLust&fontSize=90&fontColor=66fcf1&animation=fadeIn" alt="AniLust Header" />
+  <img src="https://capsule-render.vercel.app/render?type=waving&color=a855f7&height=250&section=header&text=AniLust&fontSize=90&fontColor=ffffff&animation=fadeIn" alt="AniLust Header" />
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/stars/tejasrajkumars/AniLust?style=for-the-badge&color=66fcf1&logoColor=0b0c10" alt="Stars">
-  <img src="https://img.shields.io/github/forks/tejasrajkumars/AniLust?style=for-the-badge&color=66fcf1&logoColor=0b0c10" alt="Forks">
-  <img src="https://img.shields.io/github/license/tejasrajkumars/AniLust?style=for-the-badge&color=66fcf1&logoColor=0b0c10" alt="License">
+  <img src="https://img.shields.io/github/stars/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="Stars">
+  <img src="https://img.shields.io/github/forks/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="Forks">
+  <img src="https://img.shields.io/github/license/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="License">
 </p>
 
 ---
 
 ## 📖 Overview
-**AniLust** is a high-performance, responsive web application for anime discovery. By integrating the **AniList GraphQL API**, users can explore real-time trending titles, search for specific series, and view detailed metadata in a clean, modern interface.
+**AniLust** is a premium, responsive web application designed for anime enthusiasts. It provides a seamless experience to explore the "Multiverse" of anime, featuring trending titles and personalized lists with a stunning, high-contrast dark interface.
 
-### 📸 Project Preview
-> **Note:** To display your actual site screenshot here, upload an image named `screenshot.png` to your repo and update the link below.
-
+### 📸 Interface Preview
 <p align="center">
-  <img src="https://via.placeholder.com/800x450/0b0c10/66fcf1?text=AniLust+Interface+Preview" width="800" alt="Interface Preview">
+  <img src="https://github.com/tejasrajkumars/AniLust/blob/main/Screenshot%202026-02-08%20211301.jpg?raw=true" width="850" alt="AniLust Dashboard Preview">
 </p>
 
 ---
 
 ## ✨ Features
-* **Live Data:** Powered by the AniList API for up-to-the-minute anime trends.
-* **Smart Search:** Instant results for any anime title.
-* **Minimalist UI:** Designed with a "Dark Mode" first approach for better readability.
-* **Fully Responsive:** Optimized for everything from mobile phones to 4K monitors.
+* **Trending Sector:** Stay updated with popular hits like *You and I Are Polar Opposites*.
+* **Dynamic Sidebar:** Quick access to Home, Trending, My List, and Favorites.
+* **Smart Search:** Integrated "Search Multiverse" functionality for instant discovery.
+* **Modern Auth:** Ready-to-use Login and Sign-up UI integration.
+* **Responsive Design:** Optimized for a cinematic viewing experience across all devices.
 
 ## 🛠️ Tech Stack
 | Tech | Purpose |
 | :--- | :--- |
-| **HTML5** | Semantic structure |
-| **CSS3** | Custom styling & Layout (Flexbox/Grid) |
-| **JavaScript** | ES6+ Fetch API & DOM Logic |
-| **GraphQL** | Efficient data querying from AniList |
+| **HTML5 / CSS3** | Structure and the custom Purple/Dark theme |
+| **JavaScript** | Dynamic content rendering and navigation logic |
+| **AniList API** | Sourcing real-time anime metadata and images |
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 1.  **Clone the Repo**
     ```bash
     git clone [https://github.com/tejasrajkumars/AniLust.git](https://github.com/tejasrajkumars/AniLust.git)
     ```
-2.  **Open the Project**
-    Open `index.html` in your browser.
+2.  **Run the App**
+    Simply open `index.html` in your browser.
 
 ---
 
-## 📂 Folder Structure
-```text
-├── index.html       # Entry point
-├── style.css        # Core styling
-├── script.js        # API Logic
-└── assets/          # Local images & icons
+## 👤 Author
+**Tejas Rajkumar**
+* GitHub: [@tejasrajkumars](https://github.com/tejasrajkumars)
+
+---
+<p align="center">
+  Explore the Multiverse with AniLust.
+</p>
