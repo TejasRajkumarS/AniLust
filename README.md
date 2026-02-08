@@ -1,7 +1,7 @@
 # <p align="center">📺 AniLust 📺</p>
 
 <p align="center">
-  <img src="https://capsule-render.vercel.app/render?type=waving&color=a855f7&height=250&section=header&text=AniLust&fontSize=90&fontColor=ffffff&animation=fadeIn" alt="AniLust Header" />
+  <img src="Gemini_Generated_Image_sk3tbysk3tbysk3t (1).png" alt="AniLust Brand Header" width="1000" />
 </p>
 
 <p align="center">
@@ -13,9 +13,9 @@
 ---
 
 ## 📖 Deep Dive Overview
-**AniLust** is more than just an anime tracker; it is a high-performance discovery engine built for the modern anime community. Developed with a focus on **Minimalist UX** and **Real-time Data Fetching**, it provides a centralized "Multiverse" hub to browse, search, and manage anime titles.
+**AniLust** is a high-performance discovery engine built for the modern anime community. Developed with a focus on **Minimalist UX** and **Real-time Data Fetching**, it provides a centralized "Multiverse" hub to browse, search, and manage anime titles.
 
-The application addresses the common issue of cluttered anime databases by offering a "Cinema-First" dark mode interface that emphasizes high-quality cover art and smooth transitions.
+As a second-year BCA student and Data Analyst, I designed this application to solve the common issue of cluttered anime databases by offering a "Cinema-First" dark mode interface that emphasizes high-quality cover art and smooth transitions.
 
 ### 📸 Interface Preview
 <p align="center">
@@ -37,21 +37,20 @@ The application addresses the common issue of cluttered anime databases by offer
 
 ### 🔐 User Ecosystem
 * **Personalized Libraries:** Ready-to-use hooks for "My List" and "Favorites" sections.
-* **Authentication Suite:** Pre-styled Login and Sign-up modules designed for future backend integration (Firebase/Supabase).
+* **Authentication Suite:** Pre-styled Login and Sign-up modules designed for future backend integration.
 
 ---
 
 ## 🛠️ Technical Architecture
+
+
+[Image of Web Application Architecture diagram]
+
 This project demonstrates modern frontend engineering principles:
 
 * **API Management:** Leverages the **AniList GraphQL API** to fetch complex nested data (genres, ratings, status) in a single request, reducing latency.
 * **State Control:** Managed via native JavaScript to ensure a lightweight footprint without the overhead of heavy frameworks.
 * **Visual Assets:** Uses dynamic rendering for cover images to ensure the UI remains fast while loading high-resolution media.
-
-
-
-[Image of Web Application Architecture diagram]
-
 
 ---
 
