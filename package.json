@@ -1,16 +1,20 @@
 {
   "name": "anilust---ultra-immersive-anime-streaming",
+  "homepage": "TejasRajkumarS.github.io/AniLust",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "Predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@google/genai": "^1.40.0",
     "@types/hls.js": "^0.13.3",
+    "gh-pages": "^6.3.0",
     "hls.js": "^1.6.15",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
