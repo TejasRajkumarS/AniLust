@@ -1,0 +1,101 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Anilust</title>
+  <link rel="preconnect" href="https://graphql.anilist.co">
+  <link rel="preconnect" href="https://api.consumet.org">
+  <link rel="dns-prefetch" href="https://s4.anilist.co">
+  <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#a855f7",
+            "background-dark": "#050505",
+            "card-dark": "#121212",
+            "accent-dark": "#1a1a1a",
+          },
+          fontFamily: {
+            "display": ["Spline Sans", "sans-serif"]
+          },
+          keyframes: {
+            shimmer: {
+              '100%': { transform: 'translateX(100%)' },
+            }
+          },
+          animation: {
+            shimmer: 'shimmer 3s infinite',
+          }
+        },
+      },
+    }
+  </script>
+  <style>
+    :root {
+      --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    body {
+      font-family: 'Spline Sans', sans-serif;
+      background-color: #050505;
+      color: white;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+    /* Smart TV & Keyboard Focus States */
+    :focus-visible {
+      outline: 3px solid #a855f7;
+      outline-offset: 4px;
+      box-shadow: 0 0 20px rgba(168,85,247,0.5);
+      border-radius: 8px;
+    }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .glass-effect {
+      background: rgba(18, 18, 18, 0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    @keyframes bounce-in {
+      0% { transform: translate(-50%, 100%); opacity: 0; }
+      60% { transform: translate(-50%, -10%); opacity: 1; }
+      100% { transform: translate(-50%, 0); opacity: 1; }
+    }
+    .animate-bounce-in {
+      animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+
+<link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-Cy-imd_x.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/vendor-Btvvx3Fo.js">
+</head>
+<body class="bg-background-dark text-white selection:bg-primary/30">
+  <div id="root"></div>
+</body>
+</html>
