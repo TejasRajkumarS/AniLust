@@ -10,6 +10,8 @@
   <img src="https://img.shields.io/github/license/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="License Badge">
 </p>
 
+
+🔗 **[Checkout Now (Live Demo)](https://TejasRajkumarS.github.io/AniLust)**
 ---
 
 ## 📖 Deep Dive Overview
