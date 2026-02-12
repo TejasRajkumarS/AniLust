@@ -11,7 +11,8 @@
 </p>
 
 
-https://img.shields.io/badge/Visit_AniLust-8A2BE2?style=for-the-badge&logo=icloud&logoColor=white
+[![Visit AniLust](https://img.shields.io/badge/Visit_AniLust-8A2BE2?style=for-the-badge&logo=icloud&logoColor=white)](https://TejasRajkumarS.github.io/AniLust)
+
 
 ---
 
