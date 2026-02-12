@@ -11,7 +11,12 @@
 </p>
 
 
-[![Visit AniLust](https://img.shields.io/badge/Visit_AniLust-8A2BE2?style=for-the-badge&logo=icloud&logoColor=white)](https://TejasRajkumarS.github.io/AniLust)
+<p align="center">
+  <a href="https://TejasRajkumarS.github.io/AniLust">
+    <img src="https://img.shields.io/badge/Visit_AniLust-8A2BE2?style=for-the-badge&logo=icloud&logoColor=white" alt="Visit AniLust">
+  </a>
+</p>
+
 
 
 ---
