@@ -11,7 +11,8 @@
 </p>
 
 
-🔗 **[Checkout Now (Live Demo)](https://TejasRajkumarS.github.io/AniLust)**
+https://img.shields.io /badge/AniLust-9370DB ?style-plastic
+
 ---
 
 ## 📖 Deep Dive Overview
