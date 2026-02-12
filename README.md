@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/github/stars/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="Stars Badge">
   <img src="https://img.shields.io/github/forks/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="Forks Badge">
-  <img src="https://img.shields.io/github/license/tejasrajkumars/AniLust?style=for-the-badge&color=a855f7&logoColor=ffffff" alt="License Badge">
+  <img src="https://img.shields.io/badge/License-MIT-8A2BE2?style=for-the-badge">
 </p>
 
 
