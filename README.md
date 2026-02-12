@@ -16,6 +16,15 @@
 
 ---
 
+## 🛠 Tech Stack
+
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Three.js](https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=three.dot-js&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-039BE5?style=for-the-badge&logo=Firebase&logoColor=white)
+![Tailwind_CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+
+
 ## 📖 Deep Dive Overview
 **AniLust** is a high-performance discovery engine built for the modern anime community. Developed with a focus on **Minimalist UX** and **Real-time Data Fetching**, it provides a centralized "Multiverse" hub to browse, search, and manage anime titles.
 
