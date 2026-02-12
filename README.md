@@ -11,7 +11,7 @@
 </p>
 
 
-https://img.shields.io /badge/AniLust-9370DB ?style-plastic
+https://img.shields.io/badge/Visit_AniLust-8A2BE2?style=for-the-badge&logo=icloud&logoColor=white
 
 ---
 
