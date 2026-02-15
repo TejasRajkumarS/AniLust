@@ -1,8 +1,7 @@
-
 import { GoogleGenAI } from "@google/genai";
 
-// Always use a named parameter for the API key from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Always use a named parameter for the API key from import.meta.env.VITE_GEMINI_API_KEY.
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 export interface GroundingSource {
   title: string;
@@ -19,10 +18,10 @@ export const geminiService = {
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Research the anime "${title}" using Google Search. 
+        contents: `Research the anime "${title}" using Google Search.
         Provide a short, exciting "hook" why someone should watch it based on latest critical reception.
         List 3 highly similar anime that are popular right now.
-        
+
         Format your response strictly as:
         HOOK: [your hook here]
         SIMILAR: [Anime 1], [Anime 2], [Anime 3]`,
@@ -57,10 +56,10 @@ export const geminiService = {
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `The user wants anime recommendations based on this vibe: "${prompt}". 
+        contents: `The user wants anime recommendations based on this vibe: "${prompt}".
         Use Google Search to find current, trending, or highly-rated anime that fit this description perfectly.
         Provide 4 recommendations.
-        
+
         Format each item as:
         TITLE: [Anime Name]
         REASON: [Short compelling reason]`,

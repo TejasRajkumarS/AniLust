@@ -44,6 +44,11 @@ export interface StreamData {
   headers: Record<string, string>;
   sources: StreamSource[];
   download: string;
+  subtitles?: Array<{
+    url: string;
+    lang: string;
+    kind: string;
+  }>;
 }
 
 export interface EpisodeServer {
@@ -57,4 +62,5 @@ export interface User {
   email: string;
   avatar?: string;
   role?: string;
+  passwordHash?: string;
 }

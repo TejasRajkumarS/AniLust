@@ -78,18 +78,21 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
     try {
       setLoading(true);
       const data = await consumetService.getInfo(id);
+      console.log('🔍 Anime data received:', data);
+      console.log('📺 Episodes count:', data.episodes?.length || 0);
+      console.log('📋 Episodes data:', data.episodes);
       setAnime(data);
+      const groundedTitle = typeof data.title === 'string' ? data.title : data.title.english || '';
+      geminiService.getAnimeInsight(groundedTitle, data.description || '').then(result => {
+        if (result) { setAiInsight(result.data); setAiSources(result.sources); }
+      });
       const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
       setInWatchlist(watchlist.some((item: any) => item.id === id));
       const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
       setIsFavorite(favorites.some((item: any) => item.id === id));
       const history = JSON.parse(localStorage.getItem('anime_history') || '{}');
       setWatchHistory(history[id] || []);
-      const groundedTitle = typeof data.title === 'string' ? data.title : data.title.english || '';
-      geminiService.getAnimeInsight(groundedTitle, data.description || '').then(result => {
-        if (result) { setAiInsight(result.data); setAiSources(result.sources); }
-      });
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) { console.error('❌ Error fetching anime info:', err); } finally { setLoading(false); }
   };
 
   useEffect(() => { fetchInfo(); }, [id]);
@@ -182,10 +185,10 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
           <div className="relative w-full max-w-7xl aspect-video bg-black rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 z-10">
             <div id="trailer-player" className="w-full h-full scale-105"></div>
             <div className={`absolute inset-0 z-20 flex flex-col justify-between transition-opacity duration-700 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-               <div className="p-10 flex justify-between bg-gradient-to-b from-black/80 to-transparent">
-                  <h2 className="text-3xl font-black text-white">{titleText}</h2>
-                  <button onClick={() => setShowTrailer(false)} className="p-4 bg-white/5 rounded-2xl text-white hover:bg-red-500/20 transition-all border border-white/10"><span className="material-symbols-outlined">close</span></button>
-               </div>
+              <div className="p-10 flex justify-between bg-gradient-to-b from-black/80 to-transparent">
+                <h2 className="text-3xl font-black text-white">{titleText}</h2>
+                <button onClick={() => setShowTrailer(false)} className="p-4 bg-white/5 rounded-2xl text-white hover:bg-red-500/20 transition-all border border-white/10"><span className="material-symbols-outlined">close</span></button>
+              </div>
             </div>
           </div>
         </div>

@@ -22,6 +22,7 @@ const Trending: React.FC = () => {
     try {
       setLoading(true);
       const data = await consumetService.getTrending(pageNum);
+
       if (pageNum === 1) {
         setList(data.results);
       } else {
@@ -40,7 +41,7 @@ const Trending: React.FC = () => {
   }, []);
 
   const loadMore = () => {
-    if (loading) return;
+    if (loading || !hasNextPage) return;
     const next = page + 1;
     setPage(next);
     fetchTrending(next);
@@ -58,7 +59,7 @@ const Trending: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-x-8 gap-y-12 animate-fade-in">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-x-8 gap-y-12">
         {/* Initial Loading Skeletons */}
         {loading && list.length === 0 && Array.from({ length: 14 }).map((_, i) => (
           <SkeletonCard key={`skeleton-${i}`} />
@@ -77,7 +78,7 @@ const Trending: React.FC = () => {
 
       {!loading && hasNextPage && (
         <div className="flex justify-center mt-20">
-          <button 
+          <button
             onClick={loadMore}
             className="bg-white/5 hover:bg-white/10 text-white font-black px-12 py-5 rounded-[2rem] border border-white/10 transition-all active:scale-95 tracking-widest uppercase text-sm flex items-center gap-3"
           >
