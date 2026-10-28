@@ -45,18 +45,31 @@ const Watch: React.FC = () => {
       setUseIframe(false);
       setIframeLoading(true);
 
-      const [streamRes, serverRes, animeData] = await Promise.allSettled([
-        consumetService.getStream(episodeId, serverName),
+      // Fetch anime info first so we can pass title/episode number to getStream
+      // (needed for resolving AniList-format episode IDs via Consumet fallback)
+      let animeInfo: Anime | null = null;
+      if (animeId) {
+        try { animeInfo = await consumetService.getInfo(animeId); } catch { /* silent */ }
+      }
+      if (animeInfo) setAnime(animeInfo);
+
+      // Extract episode number from the episodeId for Consumet fallback
+      const currentEpisode = animeInfo?.episodes?.find(e => e.id === episodeId);
+      const epNumber = currentEpisode?.number;
+      const animeTitle = animeInfo?.title
+        ? (typeof animeInfo.title === 'string' ? animeInfo.title : animeInfo.title.english || animeInfo.title.romaji)
+        : undefined;
+
+      const [streamRes, serverRes] = await Promise.allSettled([
+        consumetService.getStream(episodeId, serverName, animeTitle, epNumber),
         consumetService.getServers(episodeId),
-        animeId ? consumetService.getInfo(animeId) : Promise.resolve(null)
       ]);
 
-      if (animeData.status === 'fulfilled' && animeData.value) {
-        setAnime(animeData.value);
+      if (animeInfo) {
         const history = JSON.parse(localStorage.getItem('anime_history') || '{}');
-        const watched = history[animeData.value.id] || [];
+        const watched = history[animeInfo.id] || [];
         if (!watched.includes(episodeId)) {
-          history[animeData.value.id] = [...watched, episodeId];
+          history[animeInfo.id] = [...watched, episodeId];
           localStorage.setItem('anime_history', JSON.stringify(history));
         }
       }
@@ -95,6 +108,7 @@ const Watch: React.FC = () => {
       setIsRetrying(false);
     }
   }, [episodeId, animeId]);
+
 
   useEffect(() => {
     fetchContent();

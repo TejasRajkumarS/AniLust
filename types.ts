@@ -12,6 +12,7 @@ export interface Anime {
   rating?: number;
   type?: string;
   episodes?: Episode[];
+  totalEpisodes?: number;
   trailer?: {
     id: string;
     site: string;
@@ -26,6 +27,7 @@ export interface Episode {
   image?: string;
   description?: string;
   url?: string;
+  isFiller?: boolean;
 }
 
 export interface SearchResult {
