@@ -74,8 +74,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         throw new Error('Invalid email or password');
       }
 
-      // Verify password
-      if (user.passwordHash && !verifyPassword(password, user.passwordHash)) {
+      // Verify password (accounts created before password hashing have no hash — force re-signup)
+      if (!user.passwordHash || !verifyPassword(password, user.passwordHash)) {
         throw new Error('Invalid email or password');
       }
 

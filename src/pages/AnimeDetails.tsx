@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { consumetService } from '../services/consumet';
-import { geminiService, GroundingSource } from '../services/gemini';
+import type { GroundingSource } from '../services/gemini';
 import { Anime } from '../types';
 
 const CinematicVisualizer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
@@ -78,14 +78,15 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
     try {
       setLoading(true);
       const data = await consumetService.getInfo(id);
-      console.log('🔍 Anime data received:', data);
-      console.log('📺 Episodes count:', data.episodes?.length || 0);
-      console.log('📋 Episodes data:', data.episodes);
       setAnime(data);
       const groundedTitle = typeof data.title === 'string' ? data.title : data.title.english || '';
-      geminiService.getAnimeInsight(groundedTitle, data.description || '').then(result => {
+      try {
+        const { geminiService } = await import('../services/gemini');
+        const result = await geminiService.getAnimeInsight(groundedTitle, data.description || '');
         if (result) { setAiInsight(result.data); setAiSources(result.sources); }
-      });
+      } catch (genaiError) {
+        console.error('Gemini import / insight error:', genaiError);
+      }
       const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
       setInWatchlist(watchlist.some((item: any) => item.id === id));
       const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
@@ -151,7 +152,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
       setAnime(refreshed);
       if (refreshed.episodes && refreshed.episodes.length > 0) {
         const nextEp = refreshed.episodes.find(ep => !watchHistory.includes(ep.id)) || refreshed.episodes[0];
-        navigate(`/watch/${nextEp.id}?animeId=${anime.id}`);
+        navigate(`/watch/${encodeURIComponent(nextEp.id)}?animeId=${anime.id}`);
       } else { showToast("No active stream signal found."); }
     } catch (err) { showToast("Sync error."); } finally { setIsSyncingEpisodes(false); }
   };
@@ -163,6 +164,15 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
     localStorage.setItem('watchlist', JSON.stringify(updated));
     setInWatchlist(!inWatchlist);
     showToast(inWatchlist ? "Removed from list" : "Added to list");
+  };
+
+  const toggleFavorite = () => {
+    if (!anime) return;
+    const current = JSON.parse(localStorage.getItem('favorites') || '[]');
+    const updated = isFavorite ? current.filter((item: any) => item.id !== anime.id) : [...current, anime];
+    localStorage.setItem('favorites', JSON.stringify(updated));
+    setIsFavorite(!isFavorite);
+    showToast(isFavorite ? "Removed from favorites" : "Added to favorites");
   };
 
   const progressData = useMemo(() => {
@@ -245,7 +255,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {anime.episodes?.map((ep, i) => (
-                <Link key={ep.id} to={`/watch/${ep.id}?animeId=${anime.id}`} className="group relative flex gap-6 bg-card-dark/40 border border-white/5 rounded-[2.2rem] p-5 hover:border-primary/40 hover:-translate-y-2 transition-all animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
+                <Link key={ep.id} to={`/watch/${encodeURIComponent(ep.id)}?animeId=${anime.id}`} className="group relative flex gap-6 bg-card-dark/40 border border-white/5 rounded-[2.2rem] p-5 hover:border-primary/40 hover:-translate-y-2 transition-all animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
                   <div className="relative w-32 aspect-video rounded-2xl overflow-hidden bg-slate-800 border border-white/5">
                     <img src={ep.image || anime.image} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-all" />
                     {watchHistory.includes(ep.id) && <div className="absolute top-2 right-2 size-6 rounded-lg bg-primary text-white flex items-center justify-center shadow-lg border border-white/10"><span className="material-symbols-outlined !text-base">check</span></div>}
@@ -272,6 +282,10 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
               {isSyncingEpisodes ? 'SYNCING...' : 'WATCH NOW'}
             </button>
             <button onClick={toggleWatchlist} className={`w-full py-5 rounded-2xl font-black text-[11px] border transition-all ${inWatchlist ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-white/5 border-white/10 text-white'}`}>{inWatchlist ? 'SAVED' : 'MY LIST'}</button>
+            <button onClick={toggleFavorite} className={`w-full py-5 rounded-2xl font-black text-[11px] border transition-all flex items-center justify-center gap-2 ${isFavorite ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}>
+              <span className="material-symbols-outlined !text-lg" style={isFavorite ? { fontVariationSettings: "'FILL' 1" } : undefined}>favorite</span>
+              {isFavorite ? 'FAVORITED' : 'FAVORITE'}
+            </button>
             {anime.trailer && <button onClick={() => setShowTrailer(true)} className="w-full py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-black text-[11px] hover:bg-white/10">TRAILER</button>}
           </div>
         </div>

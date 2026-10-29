@@ -90,14 +90,9 @@ const Home: React.FC<HomeProps> = ({ showToast }) => {
 
       try {
         const data = await consumetService.getByGenre(selectedGenre, 1);
-        console.log(`🔍 Genre "${selectedGenre}" API response:`, data);
-        console.log(`📊 Results count: ${data.results?.length || 0}`);
-        if (data.results && data.results.length > 0) {
-          console.log(`✅ First result:`, data.results[0]);
-        }
         setGenreResults(data.results || []);
       } catch (err) {
-        console.error('❌ Genre fetch error:', err);
+        console.error('Genre fetch error:', err);
         // Keep genreResults empty on error
         setGenreResults([]);
       } finally {
@@ -116,17 +111,7 @@ const Home: React.FC<HomeProps> = ({ showToast }) => {
     );
   }
 
-  console.log('🎯 Featured banner calculation:');
-  console.log('  - selectedGenre:', selectedGenre);
-  console.log('  - genreResults.length:', genreResults.length);
-  console.log('  - trending.length:', trending.length);
-
   const featured = selectedGenre && genreResults.length > 0 ? genreResults[0] : (trending.length > 0 ? trending[0] : null);
-
-  if (featured) {
-    console.log('  - Featured anime:', typeof featured.title === 'string' ? featured.title : featured.title.english || featured.title.romaji);
-    console.log('  - Featured ID:', featured.id);
-  }
 
   const featuredTitle = featured ? (typeof featured.title === 'string' ? featured.title : featured.title.english || featured.title.romaji) : '';
 
@@ -191,7 +176,7 @@ const Home: React.FC<HomeProps> = ({ showToast }) => {
               {continueWatching.map(anime => (
                 <Link
                   key={anime.id}
-                  to={anime.lastEp ? `/watch/${anime.lastEp.id}?animeId=${anime.id}` : `/info/${anime.id}`}
+                  to={anime.lastEp ? `/watch/${encodeURIComponent(anime.lastEp.id)}?animeId=${anime.id}` : `/info/${anime.id}`}
                   className="flex-none w-64 md:w-72 group relative overflow-hidden rounded-2xl border border-white/5 bg-card-dark focus:ring-4 focus:ring-primary outline-none"
                 >
                   <div className="aspect-video relative overflow-hidden">

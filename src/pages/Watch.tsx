@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import Hls from 'hls.js';
+import type Hls from 'hls.js';
 import { consumetService } from '../services/consumet';
 import { EpisodeServer, Anime, StreamData } from '../types';
 
@@ -28,12 +28,14 @@ const Watch: React.FC = () => {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [autoSyncTimer, setAutoSyncTimer] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsInitTimeoutRef = useRef<number | null>(null);
+  // Mirror of `servers` for use inside effects without re-triggering them
+  const serversRef = useRef<EpisodeServer[]>([]);
+  serversRef.current = servers;
 
   const fetchContent = useCallback(async (isRetry = false, serverName?: string) => {
     if (!episodeId) return;
@@ -88,8 +90,9 @@ const Watch: React.FC = () => {
       } else {
         // Handle environment blockage explicitly
         if (streamRes.status === 'rejected') {
+          console.error('[Watch] Stream fetch failed:', streamRes.reason);
           setError({ 
-            message: streamRes.reason.message || 'Stream resolution requires a live backend proxy.', 
+            message: 'Unable to load stream. The streaming providers may be temporarily unavailable. Please try again later or try a different anime.', 
             type: 'environment' 
           });
         } else {
@@ -97,7 +100,7 @@ const Watch: React.FC = () => {
           if (serverRes.status === 'fulfilled' && serverRes.value.length > 0) {
             setActiveServer(serverName || serverRes.value[0].name);
           } else {
-            setError({ message: 'No active stream signals were detected in this sector.', type: 'fatal' });
+            setError({ message: 'No streaming sources available for this episode. The episode may not be available yet.', type: 'fatal' });
           }
         }
       }
@@ -117,56 +120,81 @@ const Watch: React.FC = () => {
   useEffect(() => {
     if (streamData && videoRef.current && !useIframe) {
       const hlsSource = streamData.sources.find(s => s.url.includes('.m3u8')) || streamData.sources[0];
-      
+
       hlsInitTimeoutRef.current = window.setTimeout(() => {
-        if (!isPlaying && !useIframe) {
+        if (!videoRef.current || videoRef.current.paused) {
           setUseIframe(true);
-          if (servers.length > 0) setActiveServer(servers[0].name);
+          if (serversRef.current.length > 0) setActiveServer(serversRef.current[0].name);
         }
       }, 7000);
 
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-          xhrSetup: (xhr) => {
-            if (streamData.headers) {
-              Object.keys(streamData.headers).forEach(key => {
-                if (!['referer', 'user-agent'].includes(key.toLowerCase())) {
-                  xhr.setRequestHeader(key, streamData.headers[key]);
-                }
-              });
-            }
-          }
-        });
-        hlsRef.current = hls;
-        hls.loadSource(hlsSource.url);
-        hls.attachMedia(videoRef.current);
-        
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (hlsInitTimeoutRef.current) clearTimeout(hlsInitTimeoutRef.current);
-          videoRef.current?.play().catch(() => setIsPlaying(false));
-        });
+      let isMounted = true;
+      const loadHls = async () => {
+        try {
+          const HlsModule = await import('hls.js');
+          const Hls = HlsModule.default;
 
-        hls.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal) {
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-               setUseIframe(true);
-               if (servers.length > 0) setActiveServer(servers[0].name);
-               hls.destroy();
-            } else {
-               hls.recoverMediaError();
-            }
+          if (!isMounted) return;
+          if (!Hls.isSupported()) {
+            setUseIframe(true);
+            if (serversRef.current.length > 0) setActiveServer(serversRef.current[0].name);
+            return;
           }
-        });
-      }
+
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            xhrSetup: (xhr) => {
+              if (streamData.headers) {
+                Object.keys(streamData.headers).forEach(key => {
+                  if (!['referer', 'user-agent'].includes(key.toLowerCase())) {
+                    xhr.setRequestHeader(key, streamData.headers[key]);
+                  }
+                });
+              }
+            }
+          });
+
+          hlsRef.current = hls;
+          hls.loadSource(hlsSource.url);
+          hls.attachMedia(videoRef.current);
+
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (hlsInitTimeoutRef.current) clearTimeout(hlsInitTimeoutRef.current);
+            videoRef.current?.play().catch(() => setIsPlaying(false));
+          });
+
+          hls.on(Hls.Events.ERROR, (_, data) => {
+            if (data.fatal) {
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                setUseIframe(true);
+                if (serversRef.current.length > 0) setActiveServer(serversRef.current[0].name);
+                hls.destroy();
+              } else {
+                hls.recoverMediaError();
+              }
+            }
+          });
+        } catch (loadError) {
+          console.error('Failed to load HLS runtime:', loadError);
+          setUseIframe(true);
+          if (serversRef.current.length > 0) setActiveServer(serversRef.current[0].name);
+        }
+      };
+
+      loadHls();
 
       return () => {
+        isMounted = false;
         if (hlsRef.current) hlsRef.current.destroy();
         if (hlsInitTimeoutRef.current) clearTimeout(hlsInitTimeoutRef.current);
       };
     }
-  }, [streamData, useIframe, servers, isPlaying]);
+    // Only re-create the player when the stream or render mode changes.
+    // (Depending on isPlaying/servers here previously destroyed and
+    // rebuilt the HLS instance on every pause.)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamData, useIframe]);
 
   const togglePlay = () => {
     if (videoRef.current) {
@@ -182,10 +210,6 @@ const Watch: React.FC = () => {
       const dur = videoRef.current.duration;
       setProgress((cur / (dur || 1)) * 100);
       setDuration(dur);
-      if (dur > 0 && dur - cur < 15 && !autoSyncTimer && anime?.episodes) {
-        const curIdx = anime.episodes.findIndex(e => e.id === episodeId);
-        if (curIdx !== -1 && curIdx < anime.episodes.length - 1) setAutoSyncTimer(15);
-      }
     }
   };
 
@@ -245,14 +269,62 @@ const Watch: React.FC = () => {
                 <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Bridging Relay Server...</p>
               </div>
             )}
-            <iframe 
-               src={servers.find(s => s.name === activeServer)?.url || servers[0]?.url}
-               className="w-full h-full border-none"
-               allowFullScreen
-               referrerPolicy="no-referrer"
-               onLoad={() => setIframeLoading(false)}
-               allow="autoplay; fullscreen"
-            ></iframe>
+            {(() => {
+              const serverUrl = servers.find(s => s.name === activeServer)?.url || servers[0]?.url || streamData?.sources?.[0]?.url;
+              // Check if the URL is a direct video stream (m3u8/mp4/webm) vs an embed page
+              const isDirectVideo = serverUrl && (serverUrl.includes('.m3u8') || serverUrl.includes('.mp4') || serverUrl.includes('.webm'));
+              
+              if (!serverUrl) {
+                return (
+                  <div className="w-full h-full flex items-center justify-center text-center px-8">
+                    <div>
+                      <p className="text-white text-sm font-black uppercase tracking-[0.2em] mb-4">No stream URL available.</p>
+                      <p className="text-slate-400 text-xs">The player has a valid stream, but the active relay source could not be resolved. Try switching servers or retrying.</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (isDirectVideo) {
+                // Use video element for direct video URLs
+                return (
+                  <video
+                    src={serverUrl}
+                    className="w-full h-full object-contain"
+                    controls
+                    autoPlay
+                    onLoadedData={() => setIframeLoading(false)}
+                    onError={() => {
+                      setIframeLoading(false);
+                      setError({ message: 'Failed to load video stream', type: 'environment' });
+                    }}
+                  />
+                );
+              }
+              
+              // Use iframe for embed pages
+              return (
+                <div className="relative w-full h-full">
+                  <iframe 
+                     src={serverUrl}
+                     className="w-full h-full border-none"
+                     allowFullScreen
+                     referrerPolicy="no-referrer"
+                     onLoad={() => setIframeLoading(false)}
+                     allow="autoplay; fullscreen"
+                  />
+                  {/* Fallback button if iframe doesn't work */}
+                  <div className="absolute top-4 right-4 z-20">
+                    <button 
+                      onClick={() => window.open(serverUrl, '_blank')}
+                      className="bg-primary/90 hover:bg-primary text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Open in New Tab
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <video 
@@ -278,6 +350,23 @@ const Watch: React.FC = () => {
              </div>
           </div>
         )}
+
+        {/* Server selector for iframe mode */}
+        {useIframe && servers.length > 1 && (
+          <div className={`absolute bottom-0 left-0 right-0 p-8 pt-16 bg-gradient-to-t from-black via-black/80 to-transparent z-[100] transition-all duration-700 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+             <div className="flex items-center justify-center gap-3">
+                {servers.map(s => (
+                  <button 
+                    key={s.name} 
+                    onClick={() => { setActiveServer(s.name); setIframeLoading(true); }} 
+                    className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${activeServer === s.name ? 'bg-primary/20 border-primary text-primary shadow-lg shadow-primary/10' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'}`}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+             </div>
+          </div>
+        )}
       </main>
 
       <div className={`fixed right-0 top-0 h-full w-[380px] z-[200] bg-background-dark/98 backdrop-blur-3xl border-l border-white/10 transition-transform duration-700 p-10 flex flex-col shadow-[-40px_0_100px_rgba(0,0,0,0.8)] ${showSidebar ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -288,7 +377,7 @@ const Watch: React.FC = () => {
         <div className="flex-1 overflow-y-auto hide-scrollbar space-y-3">
           {anime?.episodes?.map(ep => (
             <button
-              key={ep.id} onClick={() => { navigate(`/watch/${ep.id}?animeId=${animeId}`); setShowSidebar(false); }}
+              key={ep.id} onClick={() => { navigate(`/watch/${encodeURIComponent(ep.id)}?animeId=${animeId}`); setShowSidebar(false); }}
               className={`w-full flex items-center gap-5 p-5 rounded-2xl transition-all border ${ep.id === episodeId ? 'bg-primary border-primary text-white shadow-xl' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:border-white/20'}`}
             >
               <div className={`size-8 rounded-lg flex items-center justify-center font-black ${ep.id === episodeId ? 'bg-white/20' : 'bg-white/10'}`}>{ep.number}</div>
@@ -300,7 +389,20 @@ const Watch: React.FC = () => {
            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-4">Neural Relay Nodes</p>
            <div className="grid grid-cols-2 gap-2">
               {servers.map(s => (
-                <button key={s.name} onClick={() => { setUseIframe(true); setActiveServer(s.name); fetchContent(true, s.name); }} className={`px-4 py-3 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all ${activeServer === s.name ? 'bg-primary/20 border-primary text-primary shadow-lg shadow-primary/10' : 'bg-white/5 border-white/10 text-slate-500 hover:text-white'}`}>{s.name}</button>
+                <button 
+                  key={s.name} 
+                  onClick={() => { 
+                    setActiveServer(s.name); 
+                    if (useIframe) {
+                      setIframeLoading(true);
+                    } else {
+                      fetchContent(true, s.name); 
+                    }
+                  }} 
+                  className={`px-4 py-3 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all ${activeServer === s.name ? 'bg-primary/20 border-primary text-primary shadow-lg shadow-primary/10' : 'bg-white/5 border-white/10 text-slate-500 hover:text-white'}`}
+                >
+                  {s.name}
+                </button>
               ))}
            </div>
         </div>

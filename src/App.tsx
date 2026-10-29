@@ -202,16 +202,23 @@ const App: React.FC = () => {
     showToast('Logged out successfully');
   };
 
+  // Wraps a page in MainLayout with the global auth state.
+  // (Previously only /watch passed these props, so the Sidebar never
+  // reflected the logged-in user on the other routes.)
+  const withLayout = (page: React.ReactNode) => (
+    <MainLayout currentUser={currentUser} onLogout={handleLogout}>{page}</MainLayout>
+  );
+
   return (
     <Router>
       <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary"></div></div>}>
         <Routes>
-          <Route path="/" element={<MainLayout><Home showToast={showToast} /></MainLayout>} />
-          <Route path="/info/:id" element={<MainLayout><AnimeDetails showToast={showToast} /></MainLayout>} />
-          <Route path="/watchlist" element={<MainLayout><Watchlist showToast={showToast} /></MainLayout>} />
-          <Route path="/favorites" element={<MainLayout><Favorites showToast={showToast} /></MainLayout>} />
-          <Route path="/trending" element={<MainLayout><Trending /></MainLayout>} />
-          <Route path="/watch/:episodeId" element={<MainLayout currentUser={currentUser} onLogout={handleLogout}><Watch /></MainLayout>} />
+          <Route path="/" element={withLayout(<Home showToast={showToast} />)} />
+          <Route path="/info/:id" element={withLayout(<AnimeDetails showToast={showToast} />)} />
+          <Route path="/watchlist" element={withLayout(<Watchlist showToast={showToast} />)} />
+          <Route path="/favorites" element={withLayout(<Favorites showToast={showToast} />)} />
+          <Route path="/trending" element={withLayout(<Trending />)} />
+          <Route path="/watch/:episodeId" element={withLayout(<Watch />)} />
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
           <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
         </Routes>
