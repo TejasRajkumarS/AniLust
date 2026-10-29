@@ -1,12 +1,9 @@
-
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, useNavigate, Link } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-// Fix: Added missing import for Logo component
 import Logo from './components/Logo';
 import { anirakuService } from './services/anirakuService';
-import { authService, HAS_BACKEND } from './services/authService';
-import { Anime, User } from './types';
+import { Anime } from './types';
 
 // Lazy load pages for code splitting
 const Home = lazy(() => import('./pages/Home'));
@@ -15,8 +12,6 @@ const Watch = lazy(() => import('./pages/Watch'));
 const Watchlist = lazy(() => import('./pages/Watchlist'));
 const Favorites = lazy(() => import('./pages/Favorites'));
 const Trending = lazy(() => import('./pages/Trending'));
-const Login = lazy(() => import('./pages/Login'));
-const Signup = lazy(() => import('./pages/Signup'));
 
 export const Toast: React.FC<{ message: string; show: boolean; onClose: () => void }> = ({ message, show, onClose }) => {
   useEffect(() => {
@@ -149,10 +144,10 @@ const HeaderSearch: React.FC = () => {
   );
 };
 
-const MainLayout: React.FC<{ children: React.ReactNode; currentUser: User | null; onLogout: () => void }> = ({ children, currentUser, onLogout }) => {
+const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
-      <Sidebar currentUser={currentUser} onLogout={onLogout} />
+      <Sidebar currentUser={null} onLogout={() => {}} />
       <div className="flex-1 flex flex-col relative h-screen overflow-hidden">
         <header className="sticky top-0 right-0 px-4 md:px-8 py-4 md:py-6 flex items-center justify-between gap-4 z-40 bg-gradient-to-b from-background-dark via-background-dark/90 to-transparent backdrop-blur-md">
           <div className="md:hidden">
@@ -165,9 +160,6 @@ const MainLayout: React.FC<{ children: React.ReactNode; currentUser: User | null
             <button className="size-10 md:size-11 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all">
               <span className="material-symbols-outlined !text-xl md:!text-2xl">notifications</span>
             </button>
-            <div className="size-10 rounded-xl bg-slate-800 border border-primary/20 overflow-hidden shrink-0 hidden sm:block">
-              <img src="https://picsum.photos/seed/user1/100/100" alt="Profile" className="w-full h-full object-cover" />
-            </div>
           </div>
         </header>
 
@@ -181,52 +173,12 @@ const MainLayout: React.FC<{ children: React.ReactNode; currentUser: User | null
 
 const App: React.FC = () => {
   const [toast, setToast] = useState({ show: false, message: '' });
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const savedUser = localStorage.getItem('anilust_current_user');
-    const token = authService.getToken();
-    
-    if (token && savedUser) {
-      if (HAS_BACKEND) {
-        authService.verifyToken().then(result => {
-          if (result.valid && result.user) {
-            setCurrentUser(result.user as User);
-          } else {
-            authService.logout();
-            setCurrentUser(null);
-          }
-        }).catch(() => {
-          // Keep local user if verification fails (network issue)
-          setCurrentUser(JSON.parse(savedUser));
-        });
-      } else {
-        // Demo mode: trust localStorage
-        setCurrentUser(JSON.parse(savedUser));
-      }
-    } else if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
-    }
-  }, []);
 
   const showToast = (message: string) => setToast({ show: true, message });
 
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-    showToast(`Welcome back, ${user.username}!`);
-  };
-
-  const handleLogout = () => {
-    authService.logout();
-    setCurrentUser(null);
-    showToast('Logged out successfully');
-  };
-
-  // Wraps a page in MainLayout with the global auth state.
-  // (Previously only /watch passed these props, so the Sidebar never
-  // reflected the logged-in user on the other routes.)
+  // Wraps a page in MainLayout
   const withLayout = (page: React.ReactNode) => (
-    <MainLayout currentUser={currentUser} onLogout={handleLogout}>{page}</MainLayout>
+    <MainLayout>{page}</MainLayout>
   );
 
   return (
@@ -239,8 +191,6 @@ const App: React.FC = () => {
           <Route path="/favorites" element={withLayout(<Favorites showToast={showToast} />)} />
           <Route path="/trending" element={withLayout(<Trending />)} />
           <Route path="/watch/:episodeId" element={withLayout(<Watch />)} />
-          <Route path="/login" element={<Login onLogin={handleLogin} />} />
-          <Route path="/signup" element={<Signup onLogin={handleLogin} />} />
         </Routes>
       </Suspense>
       <Toast show={toast.show} message={toast.message} onClose={() => setToast({ ...toast, show: false })} />

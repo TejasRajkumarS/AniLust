@@ -1,4 +1,3 @@
-
 export interface Anime {
   id: string;
   title: string | { english?: string; native?: string; romaji?: string };
@@ -64,41 +63,4 @@ export interface User {
   email: string;
   avatar?: string;
   role?: string;
-  passwordHash?: string;
-}
-
-// Auth-related types
-export interface AuthResponse {
-  message: string;
-  user?: {
-    id: string;
-    username: string;
-    email: string;
-    avatar?: string;
-    role: string;
-  };
-  token?: string;
-  expiresIn?: string;
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface SignupRequest {
-  username: string;
-  email: string;
-  password: string;
-}
-
-export interface TokenResponse {
-  valid: boolean;
-  user?: {
-    id: string;
-    email: string;
-    username: string;
-    role: string;
-  };
-  expiresAt?: string;
 }
