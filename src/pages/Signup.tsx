@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { User } from '../types';
 import { validateEmail, validateUsername, validatePassword, validateConfirmPassword, getPasswordStrength } from '../utils/validation';
-import { authService } from '../services/authService';
+import { authService, HAS_BACKEND } from '../services/authService';
 
 interface SignupProps {
   onLogin: (user: User) => void;
@@ -83,7 +83,23 @@ const Signup: React.FC<SignupProps> = ({ onLogin }) => {
     }
 
     try {
-      const response = await authService.signup({ username, email, password });
+      let response;
+      
+      if (HAS_BACKEND) {
+        response = await authService.signup({ username, email, password });
+      } else {
+        // Demo mode: create local account
+        const users = JSON.parse(localStorage.getItem('anilust_demo_users') || '[]');
+        
+        if (users.find((u: any) => u.email === email)) {
+          throw new Error('An account with this email already exists');
+        }
+        if (users.find((u: any) => u.username === username)) {
+          throw new Error('This username is already taken');
+        }
+        
+        response = authService.createDemoAccount(username, email);
+      }
 
       if (response.user) {
         onLogin(response.user as User);

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { User } from '../types';
 import { validateEmail } from '../utils/validation';
-import { authService } from '../services/authService';
+import { authService, HAS_BACKEND } from '../services/authService';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -67,7 +67,24 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
 
     try {
-      const response = await authService.login({ email, password });
+      let response;
+      
+      if (HAS_BACKEND) {
+        response = await authService.login({ email, password });
+      } else {
+        // Demo mode: check if user exists in localStorage or create demo account
+        const users = JSON.parse(localStorage.getItem('anilust_demo_users') || '[]');
+        const user = users.find((u: any) => u.email === email);
+        
+        if (!user) {
+          throw new Error('No account found. Create one in demo mode via Sign Up.');
+        }
+        
+        // Simple password check for demo (in real app, backend handles this)
+        response = { user, token: 'demo_token' };
+        localStorage.setItem('anilust_token', 'demo_token');
+        localStorage.setItem('anilust_current_user', JSON.stringify(user));
+      }
 
       // Save email if remember me is checked
       if (rememberMe) {

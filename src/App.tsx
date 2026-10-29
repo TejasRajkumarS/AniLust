@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar';
 // Fix: Added missing import for Logo component
 import Logo from './components/Logo';
 import { anirakuService } from './services/anirakuService';
-import { authService } from './services/authService';
+import { authService, HAS_BACKEND } from './services/authService';
 import { Anime, User } from './types';
 
 // Lazy load pages for code splitting
@@ -188,16 +188,22 @@ const App: React.FC = () => {
     const token = authService.getToken();
     
     if (token && savedUser) {
-      authService.verifyToken().then(result => {
-        if (result.valid && result.user) {
-          setCurrentUser(result.user as User);
-        } else {
-          authService.logout();
-          setCurrentUser(null);
-        }
-      }).catch(() => {
+      if (HAS_BACKEND) {
+        authService.verifyToken().then(result => {
+          if (result.valid && result.user) {
+            setCurrentUser(result.user as User);
+          } else {
+            authService.logout();
+            setCurrentUser(null);
+          }
+        }).catch(() => {
+          // Keep local user if verification fails (network issue)
+          setCurrentUser(JSON.parse(savedUser));
+        });
+      } else {
+        // Demo mode: trust localStorage
         setCurrentUser(JSON.parse(savedUser));
-      });
+      }
     } else if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
     }
