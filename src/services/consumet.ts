@@ -184,56 +184,72 @@ export function isHianimeEpisodeId(episodeId: string): boolean {
 export const consumetService = {
   getTrending: async (page = 1): Promise<SearchResult> => {
     if (hasHianime()) {
-      return getCached(`hianime-trending-${page}`, async () => {
-        const { results, hasNextPage } = await fetchHianimeList('/api/v2/animes/most-popular', page);
-        return {
-          currentPage: page,
-          hasNextPage,
-          results: results.map(mapHianimeSearchToAnime),
-        };
-      });
+      try {
+        return await getCached(`hianime-trending-${page}`, async () => {
+          const { results, hasNextPage } = await fetchHianimeList('/api/v2/animes/most-popular', page);
+          return {
+            currentPage: page,
+            hasNextPage,
+            results: results.map(mapHianimeSearchToAnime),
+          };
+        });
+      } catch (err) {
+        console.warn('[Hianime] Trending failed, falling back to AniList/Jikan:', err);
+      }
     }
     return animeApiService.getTrending(page);
   },
 
   getRecent: async (page = 1): Promise<SearchResult> => {
     if (hasHianime()) {
-      return getCached(`hianime-recent-${page}`, async () => {
-        const { results, hasNextPage } = await fetchHianimeList('/api/v2/animes/recently-updated', page);
-        return {
-          currentPage: page,
-          hasNextPage,
-          results: results.map(mapHianimeSearchToAnime),
-        };
-      });
+      try {
+        return await getCached(`hianime-recent-${page}`, async () => {
+          const { results, hasNextPage } = await fetchHianimeList('/api/v2/animes/recently-updated', page);
+          return {
+            currentPage: page,
+            hasNextPage,
+            results: results.map(mapHianimeSearchToAnime),
+          };
+        });
+      } catch (err) {
+        console.warn('[Hianime] Recent failed, falling back to AniList/Jikan:', err);
+      }
     }
     return animeApiService.getRecent(page);
   },
 
   search: async (queryStr: string, page = 1): Promise<SearchResult> => {
     if (hasHianime()) {
-      return getCached(`hianime-search-${queryStr}-${page}`, async () => {
-        const { results, hasNextPage } = await searchHianime(queryStr, page);
-        return {
-          currentPage: page,
-          hasNextPage,
-          results: results.map(mapHianimeSearchToAnime),
-        };
-      });
+      try {
+        return await getCached(`hianime-search-${queryStr}-${page}`, async () => {
+          const { results, hasNextPage } = await searchHianime(queryStr, page);
+          return {
+            currentPage: page,
+            hasNextPage,
+            results: results.map(mapHianimeSearchToAnime),
+          };
+        });
+      } catch (err) {
+        console.warn('[Hianime] Search failed, falling back to AniList/Jikan:', err);
+      }
     }
     return animeApiService.search(queryStr, page);
   },
 
   getByGenre: async (genre: string, page = 1): Promise<SearchResult> => {
     if (hasHianime()) {
-      return getCached(`hianime-genre-${genre}-${page}`, async () => {
-        const { results, hasNextPage } = await fetchHianimeList(`/api/v2/animes/genre/${encodeURIComponent(genre)}`, page);
-        return {
-          currentPage: page,
-          hasNextPage,
-          results: results.map(mapHianimeSearchToAnime),
-        };
-      });
+      try {
+        return await getCached(`hianime-genre-${genre}-${page}`, async () => {
+          const { results, hasNextPage } = await fetchHianimeList(`/api/v2/animes/genre/${encodeURIComponent(genre)}`, page);
+          return {
+            currentPage: page,
+            hasNextPage,
+            results: results.map(mapHianimeSearchToAnime),
+          };
+        });
+      } catch (err) {
+        console.warn('[Hianime] Genre failed, falling back to AniList/Jikan:', err);
+      }
     }
     return animeApiService.getByGenre(genre, page);
   },

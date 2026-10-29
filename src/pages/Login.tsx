@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { User } from '../types';
 import { validateEmail } from '../utils/validation';
-import { verifyPassword } from '../utils/auth';
+import { authService } from '../services/authService';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -67,17 +67,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
 
     try {
-      const users = JSON.parse(localStorage.getItem('anilust_users') || '[]');
-      const user = users.find((u: any) => u.email === email);
-
-      if (!user) {
-        throw new Error('Invalid email or password');
-      }
-
-      // Verify password (accounts created before password hashing have no hash — force re-signup)
-      if (!user.passwordHash || !verifyPassword(password, user.passwordHash)) {
-        throw new Error('Invalid email or password');
-      }
+      const response = await authService.login({ email, password });
 
       // Save email if remember me is checked
       if (rememberMe) {
@@ -86,8 +76,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         localStorage.removeItem('anilust_saved_email');
       }
 
-      localStorage.setItem('anilust_current_user', JSON.stringify(user));
-      onLogin(user);
+      if (response.user) {
+        onLogin(response.user as User);
+      }
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');

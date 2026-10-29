@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { consumetService } from '../services/consumet';
+import { anirakuService } from '../services/anirakuService';
 import { Anime } from '../types';
 import AnimeCard from '../components/AnimeCard';
 
@@ -21,7 +21,7 @@ const Trending: React.FC = () => {
   const fetchTrending = async (pageNum: number) => {
     try {
       setLoading(true);
-      const data = await consumetService.getTrending(pageNum);
+      const data = await anirakuService.getTrending(pageNum);
 
       if (pageNum === 1) {
         setList(data.results);

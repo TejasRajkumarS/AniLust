@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Anime, Episode } from '../types';
 import AnimeCard from '../components/AnimeCard';
-import { consumetService } from '../services/consumet';
+import { anirakuService } from '../services/anirakuService';
 
 interface WatchlistProps {
   showToast: (msg: string) => void;
@@ -89,7 +89,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ showToast }) => {
       
       await Promise.all(batch.map(async (anime) => {
         try {
-          const info = await consumetService.getInfo(anime.id);
+          const info = await anirakuService.getInfo(anime.id);
           if (info && info.episodes) {
             const currentTotal = info.episodes.length;
             const oldTotal = updatedMeta[anime.id]?.totalEpisodes || 0;

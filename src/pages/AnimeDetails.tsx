@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { consumetService } from '../services/consumet';
+import { anirakuService } from '../services/anirakuService';
 import type { GroundingSource } from '../services/gemini';
 import { Anime } from '../types';
 
@@ -77,7 +77,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
     if (!id) return;
     try {
       setLoading(true);
-      const data = await consumetService.getInfo(id);
+      const data = await anirakuService.getInfo(id);
       setAnime(data);
       const groundedTitle = typeof data.title === 'string' ? data.title : data.title.english || '';
       try {
@@ -148,7 +148,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
     if (!anime) return;
     setIsSyncingEpisodes(true);
     try {
-      const refreshed = await consumetService.getInfo(anime.id);
+      const refreshed = await anirakuService.getInfo(anime.id);
       setAnime(refreshed);
       if (refreshed.episodes && refreshed.episodes.length > 0) {
         const nextEp = refreshed.episodes.find(ep => !watchHistory.includes(ep.id)) || refreshed.episodes[0];

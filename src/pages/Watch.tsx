@@ -2,14 +2,23 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import type Hls from 'hls.js';
-import { consumetService } from '../services/consumet';
+import { anirakuService } from '../services/anirakuService';
 import { EpisodeServer, Anime, StreamData } from '../types';
 
 const Watch: React.FC = () => {
   const { episodeId } = useParams<{ episodeId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const animeId = searchParams.get('animeId');
+  const animeIdParam = searchParams.get('animeId');
+  
+  // Parse animeId and episode number from URL params
+  // episodeId format from Aniraku: "{animeId}-ep-{episodeNumber}" or just the episode number
+  // animeId param is the AniList ID
+  const animeId = animeIdParam ? parseInt(animeIdParam, 10) : 0;
+  
+  // Extract episode number from episodeId (e.g., "101921-ep-3" -> 3)
+  const episodeMatch = episodeId?.match(/-ep-(\d+)$/);
+  const episodeNumber = episodeMatch ? parseInt(episodeMatch[1], 10) : parseInt(episodeId || '1', 10);
   
   const [streamData, setStreamData] = useState<StreamData | null>(null);
   const [servers, setServers] = useState<EpisodeServer[]>([]);
@@ -38,7 +47,7 @@ const Watch: React.FC = () => {
   serversRef.current = servers;
 
   const fetchContent = useCallback(async (isRetry = false, serverName?: string) => {
-    if (!episodeId) return;
+    if (!animeId || !episodeNumber) return;
     try {
       if (isRetry) setIsRetrying(true);
       else setLoading(true);
@@ -47,24 +56,18 @@ const Watch: React.FC = () => {
       setUseIframe(false);
       setIframeLoading(true);
 
-      // Fetch anime info first so we can pass title/episode number to getStream
-      // (needed for resolving AniList-format episode IDs via Consumet fallback)
+      // Fetch anime info using Aniraku
       let animeInfo: Anime | null = null;
       if (animeId) {
-        try { animeInfo = await consumetService.getInfo(animeId); } catch { /* silent */ }
+        try { 
+          animeInfo = await anirakuService.getInfo(animeId); 
+        } catch { /* silent */ }
       }
       if (animeInfo) setAnime(animeInfo);
 
-      // Extract episode number from the episodeId for Consumet fallback
-      const currentEpisode = animeInfo?.episodes?.find(e => e.id === episodeId);
-      const epNumber = currentEpisode?.number;
-      const animeTitle = animeInfo?.title
-        ? (typeof animeInfo.title === 'string' ? animeInfo.title : animeInfo.title.english || animeInfo.title.romaji)
-        : undefined;
-
       const [streamRes, serverRes] = await Promise.allSettled([
-        consumetService.getStream(episodeId, serverName, animeTitle, epNumber),
-        consumetService.getServers(episodeId),
+        anirakuService.getStream(animeId, episodeNumber, 'sub', serverName),
+        anirakuService.getServers(animeId, episodeNumber, 'sub'),
       ]);
 
       if (animeInfo) {
@@ -110,7 +113,7 @@ const Watch: React.FC = () => {
       setLoading(false);
       setIsRetrying(false);
     }
-  }, [episodeId, animeId]);
+  }, [animeId, episodeNumber]);
 
 
   useEffect(() => {

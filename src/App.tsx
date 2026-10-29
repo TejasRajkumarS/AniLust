@@ -4,7 +4,8 @@ import { HashRouter as Router, Routes, Route, useNavigate, Link } from 'react-ro
 import Sidebar from './components/Sidebar';
 // Fix: Added missing import for Logo component
 import Logo from './components/Logo';
-import { consumetService } from './services/consumet';
+import { anirakuService } from './services/anirakuService';
+import { authService } from './services/authService';
 import { Anime, User } from './types';
 
 // Lazy load pages for code splitting
@@ -63,7 +64,7 @@ const HeaderSearch: React.FC = () => {
         setLoading(true);
         setIsOpen(true);
         try {
-          const data = await consumetService.search(query);
+          const data = await anirakuService.search(query);
           setResults(data.results.slice(0, 6));
         } catch (err) {
           setResults([]);
@@ -184,7 +185,20 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('anilust_current_user');
-    if (savedUser) {
+    const token = authService.getToken();
+    
+    if (token && savedUser) {
+      authService.verifyToken().then(result => {
+        if (result.valid && result.user) {
+          setCurrentUser(result.user as User);
+        } else {
+          authService.logout();
+          setCurrentUser(null);
+        }
+      }).catch(() => {
+        setCurrentUser(JSON.parse(savedUser));
+      });
+    } else if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
     }
   }, []);
@@ -197,8 +211,8 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    authService.logout();
     setCurrentUser(null);
-    localStorage.removeItem('anilust_current_user');
     showToast('Logged out successfully');
   };
 

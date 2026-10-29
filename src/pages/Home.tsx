@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { consumetService } from '../services/consumet';
+import { anirakuService } from '../services/anirakuService';
 import { Anime } from '../types';
 import AnimeCard from '../components/AnimeCard';
 import { Link } from 'react-router-dom';
@@ -39,8 +39,8 @@ const Home: React.FC<HomeProps> = ({ showToast }) => {
       const historyIds = Object.keys(history).reverse().slice(0, 8);
 
       const [trendingRes, recentRes] = await Promise.allSettled([
-        consumetService.getTrending(1),
-        consumetService.getRecent(1)
+        anirakuService.getTrending(1),
+        anirakuService.getRecent(1)
       ]);
 
       if (trendingRes.status === 'fulfilled' && trendingRes.value.results.length > 0) {
@@ -54,7 +54,7 @@ const Home: React.FC<HomeProps> = ({ showToast }) => {
       }
 
       if (historyIds.length > 0) {
-        const historyDetails = await Promise.allSettled(historyIds.map(id => consumetService.getInfo(id)));
+        const historyDetails = await Promise.allSettled(historyIds.map(id => anirakuService.getInfo(id)));
         const watchedData = historyDetails
           .filter(res => res.status === 'fulfilled')
           .map((res: any) => {
@@ -89,7 +89,7 @@ const Home: React.FC<HomeProps> = ({ showToast }) => {
       setGenreLoading(true);
 
       try {
-        const data = await consumetService.getByGenre(selectedGenre, 1);
+        const data = await anirakuService.getByGenre(selectedGenre, 1);
         setGenreResults(data.results || []);
       } catch (err) {
         console.error('Genre fetch error:', err);

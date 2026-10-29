@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { User } from '../types';
 import { validateEmail, validateUsername, validatePassword, validateConfirmPassword, getPasswordStrength } from '../utils/validation';
-import { hashPassword } from '../utils/auth';
+import { authService } from '../services/authService';
 
 interface SignupProps {
   onLogin: (user: User) => void;
@@ -83,32 +83,11 @@ const Signup: React.FC<SignupProps> = ({ onLogin }) => {
     }
 
     try {
-      const users = JSON.parse(localStorage.getItem('anilust_users') || '[]');
+      const response = await authService.signup({ username, email, password });
 
-      // Check if user already exists
-      if (users.find((u: User) => u.email === email)) {
-        throw new Error('An account with this email already exists');
+      if (response.user) {
+        onLogin(response.user as User);
       }
-
-      if (users.find((u: User) => u.username === username)) {
-        throw new Error('This username is already taken');
-      }
-
-      // Create new user with hashed password
-      const newUser: User = {
-        id: Date.now().toString(),
-        username,
-        email,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=8b5cf6&color=fff&bold=true`,
-        role: 'Member',
-        passwordHash: hashPassword(password)
-      };
-
-      users.push(newUser);
-      localStorage.setItem('anilust_users', JSON.stringify(users));
-      localStorage.setItem('anilust_current_user', JSON.stringify(newUser));
-
-      onLogin(newUser);
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
