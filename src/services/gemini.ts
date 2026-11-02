@@ -14,7 +14,7 @@ export interface AIResponse<T> {
 }
 
 export const geminiService = {
-  getAnimeInsight: async (title: string, description: string): Promise<AIResponse<{ hook: string, similar: string[] }> | null> => {
+  getAnimeInsight: async (title: string): Promise<AIResponse<{ hook: string, similar: string[] }> | null> => {
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',

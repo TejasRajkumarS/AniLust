@@ -15,12 +15,14 @@ const SkeletonCard: React.FC = () => (
 const Trending: React.FC = () => {
   const [list, setList] = useState<Anime[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
 
   const fetchTrending = async (pageNum: number) => {
     try {
       setLoading(true);
+      setError(false);
       const data = await anirakuService.getTrending(pageNum);
 
       if (pageNum === 1) {
@@ -31,6 +33,7 @@ const Trending: React.FC = () => {
       setHasNextPage(data.hasNextPage);
     } catch (err) {
       console.error(err);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -75,6 +78,19 @@ const Trending: React.FC = () => {
           <SkeletonCard key={`more-skeleton-${i}`} />
         ))}
       </div>
+
+      {!loading && error && list.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="size-24 bg-red-500/10 rounded-full flex items-center justify-center mb-8 border border-red-500/20">
+            <span className="material-symbols-outlined text-red-500 text-5xl">cloud_off</span>
+          </div>
+          <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter">Unable to load trending titles</h2>
+          <p className="text-slate-500 max-w-sm mx-auto mb-10 text-sm leading-relaxed font-bold uppercase tracking-widest">
+            The anime API may be temporarily unavailable. Check that the backend server is running and try again.
+          </p>
+          <button onClick={() => fetchTrending(1)} className="bg-primary text-white font-black px-10 py-5 rounded-[2rem] shadow-xl hover:bg-primary/90 transition-all uppercase tracking-[0.2em] text-[10px]">Retry</button>
+        </div>
+      )}
 
       {!loading && hasNextPage && (
         <div className="flex justify-center mt-20">

@@ -15,7 +15,7 @@ const GENRES = [
   "Sci-Fi", "Slice of Life", "Sports", "Supernatural", "Thriller"
 ];
 
-const Home: React.FC<HomeProps> = ({ showToast }) => {
+const Home: React.FC<HomeProps> = () => {
   const [trending, setTrending] = useState<Anime[]>([]);
   const [recent, setRecent] = useState<Anime[]>([]);
   const [genreResults, setGenreResults] = useState<Anime[]>([]);

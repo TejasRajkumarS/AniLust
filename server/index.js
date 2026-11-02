@@ -139,6 +139,9 @@ validateEnvironment();
 
 const ANILIST_API = 'https://graphql.anilist.co';
 const FETCH_TIMEOUT_MS = 12000;
+// Aniraku endpoints scrape upstream providers and can take 30s+ on a cold
+// (uncached) request before Cloudflare caches the response. 12s aborts them.
+const ANIRAKU_TIMEOUT_MS = 60000;
 
 // ============================================================
 // Health Check (Enhanced)
@@ -491,6 +494,142 @@ export function requireAuth(req, res, next) {
     });
   }
 }
+
+// ============================================================
+// Aniraku Streaming API Proxy
+// ============================================================
+
+const ANIRAKU_BASE = process.env.ANIRAKU_BACKEND_URL || 'https://api.aniraku.tech';
+
+// The Aniraku API sits behind Cloudflare, which blocks requests without a
+// browser-like User-Agent (it answers with an HTML challenge page and the
+// JSON parse fails). Always send these headers and validate the response.
+const ANIRAKU_FETCH_HEADERS = {
+  'Accept': 'application/json',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+};
+
+async function fetchAniraku(url, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ANIRAKU_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      ...options,
+      headers: { ...ANIRAKU_FETCH_HEADERS, ...(options.headers || {}) },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Proxy: POST /api/v1/stream
+app.post('/api/aniraku/stream', async (req, res) => {
+  try {
+    const { animeId, episode, lang, provider, refresh } = req.body;
+    const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ animeId, episode, lang, provider: provider || '', refresh: refresh || false }),
+    });
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (err) {
+    console.error('[Aniraku Stream Proxy Error]', err);
+    const status = err.name === 'AbortError' ? 504 : 500;
+    res.status(status).json({ error: 'Failed to proxy stream request to Aniraku.' });
+  }
+});
+
+// Proxy: GET /api/v1/servers
+app.get('/api/aniraku/servers', async (req, res) => {
+  try {
+    const { animeId, episode, lang } = req.query;
+    const url = new URL(`${ANIRAKU_BASE}/api/v1/servers`);
+    url.searchParams.set('animeId', String(animeId));
+    url.searchParams.set('episode', String(episode));
+    url.searchParams.set('lang', lang || 'sub');
+    const response = await fetchAniraku(url.toString());
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (err) {
+    console.error('[Aniraku Servers Proxy Error]', err);
+    const status = err.name === 'AbortError' ? 504 : 500;
+    res.status(status).json({ error: 'Failed to proxy servers request to Aniraku.' });
+  }
+});
+
+// Proxy: GET /api/v1/anime/{id}
+app.get('/api/aniraku/anime/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/anime/${id}`);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Aniraku API returned ${response.status}.` });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('[Aniraku Anime Proxy Error]', err);
+    const status = err.name === 'AbortError' ? 504 : 500;
+    res.status(status).json({ error: 'Failed to proxy anime request to Aniraku.' });
+  }
+});
+
+// Proxy: GET /api/v1/anime/{id}/episodes
+app.get('/api/aniraku/anime/:id/episodes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/anime/${id}/episodes`);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Aniraku API returned ${response.status}.` });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('[Aniraku Episodes Proxy Error]', err);
+    const status = err.name === 'AbortError' ? 504 : 500;
+    res.status(status).json({ error: 'Failed to proxy episodes request to Aniraku.' });
+  }
+});
+
+// Proxy: POST /api/v1/anilist
+app.post('/api/aniraku/anilist', async (req, res) => {
+  try {
+    const { query, variables } = req.body;
+    const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/anilist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Aniraku API returned ${response.status}.` });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('[Aniraku AniList Proxy Error]', err);
+    const status = err.name === 'AbortError' ? 504 : 500;
+    res.status(status).json({ error: 'Failed to proxy AniList request to Aniraku.' });
+  }
+});
+
+// Proxy: GET /api/v1/proxy
+app.get('/api/aniraku/proxy', async (req, res) => {
+  try {
+    const { url } = req.query;
+    const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/proxy?url=${encodeURIComponent(String(url))}`);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Aniraku API returned ${response.status}.` });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('[Aniraku Proxy Proxy Error]', err);
+    const status = err.name === 'AbortError' ? 504 : 500;
+    res.status(status).json({ error: 'Failed to proxy proxy request to Aniraku.' });
+  }
+});
 
 // ============================================================
 // Error Handling Middleware

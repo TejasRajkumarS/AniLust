@@ -58,6 +58,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
   const [aiInsight, setAiInsight] = useState<{ hook: string, similar: string[] } | null>(null);
   const [aiSources, setAiSources] = useState<GroundingSource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [watchHistory, setWatchHistory] = useState<string[]>([]);
@@ -66,10 +67,6 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
 
   const [player, setPlayer] = useState<any>(null);
   const [isTrailerPlaying, setIsTrailerPlaying] = useState(false);
-  const [trailerProgress, setTrailerProgress] = useState(0);
-  const [trailerDuration, setTrailerDuration] = useState(0);
-  const [trailerVolume, setTrailerVolume] = useState(100);
-  const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<number | null>(null);
 
@@ -77,12 +74,13 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
     if (!id) return;
     try {
       setLoading(true);
+      setError(false);
       const data = await anirakuService.getInfo(id);
       setAnime(data);
       const groundedTitle = typeof data.title === 'string' ? data.title : data.title.english || '';
       try {
         const { geminiService } = await import('../services/gemini');
-        const result = await geminiService.getAnimeInsight(groundedTitle, data.description || '');
+        const result = await geminiService.getAnimeInsight(groundedTitle);
         if (result) { setAiInsight(result.data); setAiSources(result.sources); }
       } catch (genaiError) {
         console.error('Gemini import / insight error:', genaiError);
@@ -93,7 +91,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
       setIsFavorite(favorites.some((item: any) => item.id === id));
       const history = JSON.parse(localStorage.getItem('anime_history') || '{}');
       setWatchHistory(history[id] || []);
-    } catch (err) { console.error('❌ Error fetching anime info:', err); } finally { setLoading(false); }
+    } catch (err) { console.error('❌ Error fetching anime info:', err); setError(true); } finally { setLoading(false); }
   };
 
   useEffect(() => { fetchInfo(); }, [id]);
@@ -118,7 +116,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
             videoId: anime.trailer!.id,
             playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, enablejsapi: 1 },
             events: {
-              onReady: (e: any) => { setPlayer(e.target); setTrailerDuration(e.target.getDuration()); setTrailerVolume(e.target.getVolume()); },
+              onReady: (e: any) => { setPlayer(e.target); },
               onStateChange: (e: any) => { setIsTrailerPlaying(e.data === (window as any).YT.PlayerState.PLAYING); if (e.data === (window as any).YT.PlayerState.ENDED) setShowTrailer(false); }
             }
           });
@@ -132,12 +130,6 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
     }
     return () => player?.destroy();
   }, [showTrailer, anime]);
-
-  useEffect(() => {
-    let interval: number;
-    if (isTrailerPlaying && player) { interval = window.setInterval(() => { setTrailerProgress(player.getCurrentTime()); }, 200); }
-    return () => clearInterval(interval);
-  }, [isTrailerPlaying, player]);
 
   const resetControlsTimeout = () => {
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -182,7 +174,21 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
   }, [anime, watchHistory]);
 
   if (loading) return <div className="flex items-center justify-center h-[80vh]"><div className="animate-spin rounded-full h-12 w-12 border-4 border-white/5 border-t-primary"></div></div>;
-  if (!anime) return null;
+  if (!anime) {
+    if (!error) return null;
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] text-center p-8">
+        <div className="size-24 bg-red-500/10 rounded-full flex items-center justify-center mb-8 border border-red-500/20">
+          <span className="material-symbols-outlined text-red-500 text-5xl">cloud_off</span>
+        </div>
+        <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter">Unable to load this anime</h2>
+        <p className="text-slate-500 max-w-sm mx-auto mb-10 text-sm leading-relaxed font-bold uppercase tracking-widest">
+          The anime API may be temporarily unavailable. Check that the backend server is running and try again.
+        </p>
+        <button onClick={fetchInfo} className="bg-primary text-white font-black px-10 py-5 rounded-[2rem] shadow-xl hover:bg-primary/90 transition-all uppercase tracking-[0.2em] text-[10px]">Retry</button>
+      </div>
+    );
+  }
 
   const titleText = typeof anime.title === 'string' ? anime.title : anime.title.english || anime.title.romaji;
 

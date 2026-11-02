@@ -1,6 +1,6 @@
 import { Anime, SearchResult, Episode, StreamData, EpisodeServer } from '../types';
 
-const ANIRAKU_BACKEND = import.meta.env.VITE_ANIRAKU_BACKEND_URL || 'https://api.aniraku.tech';
+const ANIRAKU_BACKEND = import.meta.env.VITE_BACKEND_URL || '';
 
 interface AnirakuAnimeRecord {
   id: number;
@@ -169,8 +169,8 @@ export const anirakuService = {
   getInfo: async (id: string | number): Promise<Anime> => {
     return getCached(`aniraku-info-${id}`, async () => {
       const [animeRes, episodesRes] = await Promise.allSettled([
-        fetchJson(`${ANIRAKU_BACKEND}/api/v1/anime/${id}`),
-        fetchJson(`${ANIRAKU_BACKEND}/api/v1/anime/${id}/episodes`),
+        fetchJson(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}`),
+        fetchJson(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}/episodes`),
       ]);
 
       if (animeRes.status === 'rejected') {
@@ -184,13 +184,13 @@ export const anirakuService = {
 
   // GET /api/v1/anime/{id}/episodes
   getEpisodes: async (id: string | number): Promise<AnirakuEpisode[]> => {
-    const data = await fetchJson(`${ANIRAKU_BACKEND}/api/v1/anime/${id}/episodes`);
+    const data = await fetchJson(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}/episodes`);
     return data.episodes || [];
   },
 
   // GET /api/v1/anime/{id}/similar
   getSimilar: async (id: string | number, page = 1, perPage = 12): Promise<SearchResult> => {
-    const url = new URL(`${ANIRAKU_BACKEND}/api/v1/anime/${id}/similar`);
+    const url = new URL(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}/similar`);
     url.searchParams.set('page', String(page));
     url.searchParams.set('perPage', String(perPage));
     const data = await fetchJson(url.toString());
@@ -203,7 +203,7 @@ export const anirakuService = {
 
   // GET /api/v1/anime/{id}/relations
   getRelations: async (id: string | number): Promise<SearchResult> => {
-    const data = await fetchJson(`${ANIRAKU_BACKEND}/api/v1/anime/${id}/relations`);
+    const data = await fetchJson(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}/relations`);
     return {
       currentPage: 1,
       hasNextPage: false,
@@ -211,9 +211,23 @@ export const anirakuService = {
     };
   },
 
-  // POST /api/v1/anilist — GraphQL proxy
+  // POST /api/anilist — direct GraphQL proxy to graphql.anilist.co via backend.
+  // More reliable than the Aniraku hop for critical metadata.
+  queryAnilistDirect: async (query: string, variables: any = {}): Promise<any> => {
+    const res = await fetch(`${ANIRAKU_BACKEND}/api/anilist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (!res.ok) throw new Error(`AniList request failed: ${res.status}`);
+    const json = await res.json();
+    if (json.errors) throw new Error(json.errors[0]?.message || 'AniList error');
+    return json.data;
+  },
+
+  // POST /api/v1/anilist — GraphQL proxy (via Aniraku upstream)
   queryAnilist: async (query: string, variables: any = {}): Promise<any> => {
-    const res = await fetch(`${ANIRAKU_BACKEND}/api/v1/anilist`, {
+    const res = await fetch(`${ANIRAKU_BACKEND}/api/aniraku/anilist`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({ query, variables }),
@@ -349,7 +363,7 @@ export const anirakuService = {
 
   // POST /api/v1/stream
   getStream: async (animeId: number, episode: number, lang: 'sub' | 'dub' = 'sub', provider?: string): Promise<StreamData> => {
-    const res = await fetch(`${ANIRAKU_BACKEND}/api/v1/stream`, {
+    const res = await fetch(`${ANIRAKU_BACKEND}/api/aniraku/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({ animeId, episode, lang, provider: provider || '', refresh: false }),
@@ -376,7 +390,7 @@ export const anirakuService = {
 
   // GET /api/v1/servers
   getServers: async (animeId: number, episode: number, lang: 'sub' | 'dub' = 'sub'): Promise<EpisodeServer[]> => {
-    const url = new URL(`${ANIRAKU_BACKEND}/api/v1/servers`);
+    const url = new URL(`${ANIRAKU_BACKEND}/api/aniraku/servers`);
     url.searchParams.set('animeId', String(animeId));
     url.searchParams.set('episode', String(episode));
     url.searchParams.set('lang', lang);
@@ -390,12 +404,12 @@ export const anirakuService = {
 
   // GET /api/v1/proxy — build proxy URL for HLS
   buildProxyUrl: (mediaUrl: string): string => {
-    return `${ANIRAKU_BACKEND}/api/v1/proxy?url=${encodeURIComponent(mediaUrl)}`;
+    return `${ANIRAKU_BACKEND}/api/aniraku/proxy?url=${encodeURIComponent(mediaUrl)}`;
   },
 
   // Health check
   healthCheck: async () => {
-    const res = await fetch(`${ANIRAKU_BACKEND}/api/v1/health`);
+    const res = await fetch(`${ANIRAKU_BACKEND}/api/aniraku/health`);
     return res.json();
   },
 
