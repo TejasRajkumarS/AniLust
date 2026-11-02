@@ -52,7 +52,7 @@ const Watch: React.FC = () => {
     } catch (err) {
       console.error('[Watch] Stream failed:', err);
       setStream(null);
-      setError('Unable to resolve stream. The streaming provider may be temporarily unavailable.');
+      setError(err instanceof Error ? err.message : 'Unable to resolve stream. The streaming provider may be temporarily unavailable.');
     } finally {
       setLoading(false);
     }

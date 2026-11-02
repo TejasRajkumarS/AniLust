@@ -1,6 +1,5 @@
 import { Anime, SearchResult, Episode, StreamData, EpisodeServer } from '../types';
-
-const ANIRAKU_BACKEND = import.meta.env.VITE_BACKEND_URL || '';
+import { API_CONFIG, requireBackend } from '../config/api';
 
 interface AnirakuAnimeRecord {
   id: number;
@@ -165,12 +164,13 @@ async function fetchJson(url: string, options: RequestInit = {}): Promise<any> {
 export const anirakuService = {
   // ========== CATALOG ==========
 
-  // GET /api/v1/anime/{id} — full anime info + episodes
+  // GET /api/v1/anime/{id} — full anime info + episodes (via backend proxy)
   getInfo: async (id: string | number): Promise<Anime> => {
     return getCached(`aniraku-info-${id}`, async () => {
+      requireBackend('Anime details');
       const [animeRes, episodesRes] = await Promise.allSettled([
-        fetchJson(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}`),
-        fetchJson(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}/episodes`),
+        fetchJson(`${API_CONFIG.aniraku}/anime/${id}`),
+        fetchJson(`${API_CONFIG.aniraku}/anime/${id}/episodes`),
       ]);
 
       if (animeRes.status === 'rejected') {
@@ -182,15 +182,17 @@ export const anirakuService = {
     });
   },
 
-  // GET /api/v1/anime/{id}/episodes
+  // GET /api/v1/anime/{id}/episodes (via backend proxy)
   getEpisodes: async (id: string | number): Promise<AnirakuEpisode[]> => {
-    const data = await fetchJson(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}/episodes`);
+    requireBackend('Episode list');
+    const data = await fetchJson(`${API_CONFIG.aniraku}/anime/${id}/episodes`);
     return data.episodes || [];
   },
 
-  // GET /api/v1/anime/{id}/similar
+  // GET /api/v1/anime/{id}/similar (via backend proxy)
   getSimilar: async (id: string | number, page = 1, perPage = 12): Promise<SearchResult> => {
-    const url = new URL(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}/similar`);
+    requireBackend('Similar anime');
+    const url = new URL(`${API_CONFIG.aniraku}/anime/${id}/similar`);
     url.searchParams.set('page', String(page));
     url.searchParams.set('perPage', String(perPage));
     const data = await fetchJson(url.toString());
@@ -201,9 +203,10 @@ export const anirakuService = {
     };
   },
 
-  // GET /api/v1/anime/{id}/relations
+  // GET /api/v1/anime/{id}/relations (via backend proxy)
   getRelations: async (id: string | number): Promise<SearchResult> => {
-    const data = await fetchJson(`${ANIRAKU_BACKEND}/api/aniraku/anime/${id}/relations`);
+    requireBackend('Related anime');
+    const data = await fetchJson(`${API_CONFIG.aniraku}/anime/${id}/relations`);
     return {
       currentPage: 1,
       hasNextPage: false,
@@ -211,10 +214,11 @@ export const anirakuService = {
     };
   },
 
-  // POST /api/anilist — direct GraphQL proxy to graphql.anilist.co via backend.
-  // More reliable than the Aniraku hop for critical metadata.
-  queryAnilistDirect: async (query: string, variables: any = {}): Promise<any> => {
-    const res = await fetch(`${ANIRAKU_BACKEND}/api/anilist`, {
+  // POST — AniList GraphQL. Goes through the backend proxy when one is
+  // configured, otherwise directly to graphql.anilist.co (CORS-enabled).
+  // Both return the same AniList JSON envelope: { data, errors? }.
+  queryAnilist: async (query: string, variables: any = {}): Promise<any> => {
+    const res = await fetch(`${API_CONFIG.anilist}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({ query, variables }),
@@ -223,18 +227,6 @@ export const anirakuService = {
     const json = await res.json();
     if (json.errors) throw new Error(json.errors[0]?.message || 'AniList error');
     return json.data;
-  },
-
-  // POST /api/v1/anilist — GraphQL proxy (via Aniraku upstream)
-  queryAnilist: async (query: string, variables: any = {}): Promise<any> => {
-    const res = await fetch(`${ANIRAKU_BACKEND}/api/aniraku/anilist`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ query, variables }),
-    });
-    const data = await res.json();
-    if (data.errors) throw new Error(data.errors[0]?.message || 'AniList error');
-    return data.data;
   },
 
   // ========== SEARCH / BROWSE (via AniList GraphQL proxy) ==========
@@ -361,9 +353,10 @@ export const anirakuService = {
 
   // ========== STREAMING ==========
 
-  // POST /api/v1/stream
+  // POST /api/v1/stream (via backend proxy)
   getStream: async (animeId: number, episode: number, lang: 'sub' | 'dub' = 'sub', provider?: string): Promise<StreamData> => {
-    const res = await fetch(`${ANIRAKU_BACKEND}/api/aniraku/stream`, {
+    requireBackend('Episode playback');
+    const res = await fetch(`${API_CONFIG.aniraku}/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({ animeId, episode, lang, provider: provider || '', refresh: false }),
@@ -388,9 +381,10 @@ export const anirakuService = {
     };
   },
 
-  // GET /api/v1/servers
+  // GET /api/v1/servers (via backend proxy)
   getServers: async (animeId: number, episode: number, lang: 'sub' | 'dub' = 'sub'): Promise<EpisodeServer[]> => {
-    const url = new URL(`${ANIRAKU_BACKEND}/api/aniraku/servers`);
+    requireBackend('Episode servers');
+    const url = new URL(`${API_CONFIG.aniraku}/servers`);
     url.searchParams.set('animeId', String(animeId));
     url.searchParams.set('episode', String(episode));
     url.searchParams.set('lang', lang);
@@ -402,14 +396,15 @@ export const anirakuService = {
     }));
   },
 
-  // GET /api/v1/proxy — build proxy URL for HLS
+  // GET /api/v1/proxy — build proxy URL for HLS (via backend proxy)
   buildProxyUrl: (mediaUrl: string): string => {
-    return `${ANIRAKU_BACKEND}/api/aniraku/proxy?url=${encodeURIComponent(mediaUrl)}`;
+    requireBackend('HLS proxy');
+    return `${API_CONFIG.aniraku}/proxy?url=${encodeURIComponent(mediaUrl)}`;
   },
 
-  // Health check
+  // Health check (backend /health)
   healthCheck: async () => {
-    const res = await fetch(`${ANIRAKU_BACKEND}/api/aniraku/health`);
+    const res = await fetch(`${API_CONFIG.health || requireBackend('Health check')}/health`);
     return res.json();
   },
 

@@ -58,7 +58,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
   const [aiInsight, setAiInsight] = useState<{ hook: string, similar: string[] } | null>(null);
   const [aiSources, setAiSources] = useState<GroundingSource[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [watchHistory, setWatchHistory] = useState<string[]>([]);
@@ -74,7 +74,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
     if (!id) return;
     try {
       setLoading(true);
-      setError(false);
+      setError(null);
       const data = await anirakuService.getInfo(id);
       setAnime(data);
       const groundedTitle = typeof data.title === 'string' ? data.title : data.title.english || '';
@@ -91,7 +91,10 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
       setIsFavorite(favorites.some((item: any) => item.id === id));
       const history = JSON.parse(localStorage.getItem('anime_history') || '{}');
       setWatchHistory(history[id] || []);
-    } catch (err) { console.error('❌ Error fetching anime info:', err); setError(true); } finally { setLoading(false); }
+    } catch (err) {
+      console.error('❌ Error fetching anime info:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { fetchInfo(); }, [id]);
@@ -182,7 +185,10 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
           <span className="material-symbols-outlined text-red-500 text-5xl">cloud_off</span>
         </div>
         <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter">Unable to load this anime</h2>
-        <p className="text-slate-500 max-w-sm mx-auto mb-10 text-sm leading-relaxed font-bold uppercase tracking-widest">
+        <p className="text-slate-500 max-w-sm mx-auto mb-4 text-sm leading-relaxed font-bold uppercase tracking-widest">
+          {error}
+        </p>
+        <p className="text-slate-600 max-w-sm mx-auto mb-10 text-[10px] font-bold uppercase tracking-widest">
           The anime API may be temporarily unavailable. Check that the backend server is running and try again.
         </p>
         <button onClick={fetchInfo} className="bg-primary text-white font-black px-10 py-5 rounded-[2rem] shadow-xl hover:bg-primary/90 transition-all uppercase tracking-[0.2em] text-[10px]">Retry</button>
