@@ -147,7 +147,7 @@ const HeaderSearch: React.FC = () => {
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
-      <Sidebar currentUser={null} onLogout={() => {}} />
+      <Sidebar />
       <div className="flex-1 flex flex-col relative h-screen overflow-hidden">
         <header className="sticky top-0 right-0 px-4 md:px-8 py-4 md:py-6 flex items-center justify-between gap-4 z-40 bg-gradient-to-b from-background-dark via-background-dark/90 to-transparent backdrop-blur-md">
           <div className="md:hidden">

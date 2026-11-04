@@ -30,6 +30,12 @@ FRONTEND_URL=http://localhost:3000
 DEBUG=true
 ```
 
+For production (`NODE_ENV=production`), `JWT_SECRET` is **mandatory** — the
+server refuses to boot without a strong value (see `.env.example`). Accounts
+persist in `server/data/users.json` (gitignored, bcrypt hashes); override with
+`USERS_FILE` if your host has an ephemeral filesystem and you want accounts to
+survive redeploys, or point it at a mounted volume.
+
 ### 3. Start the Backend
 
 ```bash

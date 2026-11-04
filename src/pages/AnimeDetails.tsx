@@ -4,6 +4,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { anirakuService } from '../services/anirakuService';
 import type { GroundingSource } from '../services/gemini';
 import { Anime } from '../types';
+import DOMPurify from 'dompurify';
+import { readJSON, writeJSON } from '../utils/storage';
 
 const CinematicVisualizer: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const [bars, setBars] = useState<number[]>(Array(60).fill(10));
@@ -66,6 +68,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
   const [isSyncingEpisodes, setIsSyncingEpisodes] = useState(false);
 
   const [player, setPlayer] = useState<any>(null);
+  const playerRef = useRef<any>(null);
   const [isTrailerPlaying, setIsTrailerPlaying] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<number | null>(null);
@@ -85,11 +88,11 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
       } catch (genaiError) {
         console.error('Gemini import / insight error:', genaiError);
       }
-      const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
+      const watchlist = readJSON<any[]>('watchlist', []);
       setInWatchlist(watchlist.some((item: any) => item.id === id));
-      const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+      const favorites = readJSON<any[]>('favorites', []);
       setIsFavorite(favorites.some((item: any) => item.id === id));
-      const history = JSON.parse(localStorage.getItem('anime_history') || '{}');
+      const history = readJSON<Record<string, string[]>>('anime_history', {});
       setWatchHistory(history[id] || []);
     } catch (err) {
       console.error('❌ Error fetching anime info:', err);
@@ -112,27 +115,55 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
   }, [showTrailer, player, isTrailerPlaying]);
 
   useEffect(() => {
-    if (showTrailer && anime?.trailer?.id) {
-      const initializeYT = () => {
-        if (!player) {
-          new (window as any).YT.Player('trailer-player', {
-            videoId: anime.trailer!.id,
-            playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, enablejsapi: 1 },
-            events: {
-              onReady: (e: any) => { setPlayer(e.target); },
-              onStateChange: (e: any) => { setIsTrailerPlaying(e.data === (window as any).YT.PlayerState.PLAYING); if (e.data === (window as any).YT.PlayerState.ENDED) setShowTrailer(false); }
-            }
-          });
-        }
+    if (!showTrailer || !anime?.trailer?.id) return;
+    let cancelled = false;
+    const videoId = anime.trailer.id;
+
+    const createPlayer = () => {
+      // playerRef survives re-renders, unlike the `player` state closed over here.
+      if (cancelled || playerRef.current) return;
+      if (!document.getElementById('trailer-player') || !(window as any).YT?.Player) return;
+      playerRef.current = new (window as any).YT.Player('trailer-player', {
+        videoId,
+        playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0, enablejsapi: 1 },
+        events: {
+          onReady: (e: any) => { if (!cancelled) { playerRef.current = e.target; setPlayer(e.target); } },
+          onStateChange: (e: any) => {
+            setIsTrailerPlaying(e.data === (window as any).YT.PlayerState.PLAYING);
+            if (e.data === (window as any).YT.PlayerState.ENDED) setShowTrailer(false);
+          },
+        },
+      });
+    };
+    const hookApiReady = () => {
+      const previous = (window as any).onYouTubeIframeAPIReady;
+      (window as any).onYouTubeIframeAPIReady = () => {
+        try { previous?.(); } catch { /* another consumer of the global hook */ }
+        createPlayer();
       };
-      if (!(window as any).YT) {
-        const tag = document.createElement('script'); tag.src = 'https://www.youtube.com/iframe_api';
-        const first = document.getElementsByTagName('script')[0]; first.parentNode?.insertBefore(tag, first);
-        (window as any).onYouTubeIframeAPIReady = initializeYT;
-      } else initializeYT();
+    };
+
+    if ((window as any).YT?.Player) {
+      createPlayer();
+    } else if ((window as any).YT) {
+      // Script is loaded but the API singleton is not ready yet.
+      hookApiReady();
+    } else {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const first = document.getElementsByTagName('script')[0];
+      first?.parentNode?.insertBefore(tag, first) ?? document.head.appendChild(tag);
+      hookApiReady();
     }
-    return () => player?.destroy();
-  }, [showTrailer, anime]);
+
+    return () => {
+      cancelled = true;
+      try { playerRef.current?.destroy?.(); } catch { /* iframe may already be gone */ }
+      playerRef.current = null;
+      setPlayer(null);
+      setIsTrailerPlaying(false);
+    };
+  }, [showTrailer, anime?.trailer?.id]);
 
   const resetControlsTimeout = () => {
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -154,24 +185,24 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
 
   const toggleWatchlist = () => {
     if (!anime) return;
-    const current = JSON.parse(localStorage.getItem('watchlist') || '[]');
+    const current = readJSON<any[]>('watchlist', []);
     let updated = inWatchlist ? current.filter((item: any) => item.id !== anime.id) : [...current, anime];
-    localStorage.setItem('watchlist', JSON.stringify(updated));
+    writeJSON('watchlist', updated);
     setInWatchlist(!inWatchlist);
     showToast(inWatchlist ? "Removed from list" : "Added to list");
   };
 
   const toggleFavorite = () => {
     if (!anime) return;
-    const current = JSON.parse(localStorage.getItem('favorites') || '[]');
+    const current = readJSON<any[]>('favorites', []);
     const updated = isFavorite ? current.filter((item: any) => item.id !== anime.id) : [...current, anime];
-    localStorage.setItem('favorites', JSON.stringify(updated));
+    writeJSON('favorites', updated);
     setIsFavorite(!isFavorite);
     showToast(isFavorite ? "Removed from favorites" : "Added to favorites");
   };
 
   const progressData = useMemo(() => {
-    if (!anime || !anime.episodes) return { count: 0, percent: 0 };
+    if (!anime?.episodes?.length) return { count: 0, total: 0, percent: 0 };
     const watched = anime.episodes.filter(ep => watchHistory.includes(ep.id)).length;
     return { count: watched, total: anime.episodes.length, percent: (watched / anime.episodes.length) * 100 };
   }, [anime, watchHistory]);
@@ -254,7 +285,7 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
 
           <section>
             <h2 className="text-3xl font-black text-white mb-8">Synopsis</h2>
-            <div className="text-slate-300 text-lg leading-relaxed prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: anime.description || '' }}></div>
+            <div className="text-slate-300 text-lg leading-relaxed prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(anime.description || '') }}></div>
           </section>
 
           <section>

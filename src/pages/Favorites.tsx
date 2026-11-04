@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Anime } from '../types';
 import AnimeCard from '../components/AnimeCard';
+import { readJSON, writeJSON } from '../utils/storage';
 
 interface FavoritesProps {
   showToast: (msg: string) => void;
@@ -11,13 +12,13 @@ const Favorites: React.FC<FavoritesProps> = ({ showToast }) => {
   const [list, setList] = useState<Anime[]>([]);
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('favorites') || '[]');
+    const saved = readJSON<Anime[]>('favorites', []);
     setList(saved);
   }, []);
 
   const clearFavorites = () => {
     if (window.confirm("Are you sure you want to clear your favorites?")) {
-      localStorage.setItem('favorites', '[]');
+      writeJSON('favorites', []);
       setList([]);
       showToast("Favorites cleared");
     }

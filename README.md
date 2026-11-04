@@ -1,7 +1,7 @@
 # <p align="center">📺 AniLust 📺</p>
 
 <p align="center">
-  <img src="Gemini_Generated_Image_sk3tbysk3tbysk3t (1).png" alt="AniLust Brand Header" width="1000" />
+  <img src="docs/brand-header.png" alt="AniLust Brand Header" width="1000" />
 </p>
 
 <p align="center">
@@ -67,7 +67,7 @@ The application combines AniList metadata with a modern React interface, intelli
 ## 📸 Interface Preview
 
 <p align="center">
-  <img src="Screenshot 2026-02-08 211301.png" width="850" alt="AniLust Dashboard Preview">
+  <img src="docs/dashboard-preview.png" width="850" alt="AniLust Dashboard Preview">
 </p>
 
 ---

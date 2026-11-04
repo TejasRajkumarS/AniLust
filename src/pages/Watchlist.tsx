@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Anime, Episode } from '../types';
 import AnimeCard from '../components/AnimeCard';
 import { anirakuService } from '../services/anirakuService';
+import { readJSON, writeJSON, removeKey } from '../utils/storage';
 
 interface WatchlistProps {
   showToast: (msg: string) => void;
@@ -33,11 +34,18 @@ const Watchlist: React.FC<WatchlistProps> = ({ showToast }) => {
   const [syncProgress, setSyncProgress] = useState(0);
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
 
+  // Mirror of metaCache for callbacks/effects so they can read the latest
+  // value without depending on (and being recreated by) the cache state.
+  const metaCacheRef = useRef(metaCache);
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('watchlist') || '[]');
-    const watchedHistory = JSON.parse(localStorage.getItem('anime_history') || '{}');
-    const savedMeta = JSON.parse(localStorage.getItem('watchlist_meta_cache') || '{}');
-    
+    metaCacheRef.current = metaCache;
+  }, [metaCache]);
+
+  useEffect(() => {
+    const saved = readJSON<Anime[]>('watchlist', []);
+    const watchedHistory = readJSON<Record<string, string[]>>('anime_history', {});
+    const savedMeta = readJSON<Record<string, AnimeMeta>>('watchlist_meta_cache', {});
+
     setList(saved);
     setHistory(watchedHistory);
     setMetaCache(savedMeta);
@@ -59,7 +67,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ showToast }) => {
     }
 
     const now = Date.now();
-    const updatedMeta: Record<string, AnimeMeta> = { ...metaCache };
+    const updatedMeta: Record<string, AnimeMeta> = { ...metaCacheRef.current };
     let newEpisodesFoundCount = 0;
     
     const itemsToFetch = animeList.filter(anime => {
@@ -117,7 +125,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ showToast }) => {
       }
     }
     
-    localStorage.setItem('watchlist_meta_cache', JSON.stringify(updatedMeta));
+    writeJSON('watchlist_meta_cache', updatedMeta);
     setIsFetchingCounts(false);
     setIsDeepSyncing(false);
 
@@ -128,19 +136,18 @@ const Watchlist: React.FC<WatchlistProps> = ({ showToast }) => {
         showToast("Synchronized with master database.");
       }
     }
-  }, [metaCache, showToast]);
+  }, [showToast]);
 
   useEffect(() => {
-    if (list.length > 0) {
-      const needsInitialFetch = list.some(a => !metaCache[a.id]);
-      if (needsInitialFetch) fetchTotalEpisodes(list, false);
-    }
-  }, [list, fetchTotalEpisodes, metaCache]);
+    if (list.length === 0) return;
+    const needsInitialFetch = list.some(a => !metaCacheRef.current[a.id]);
+    if (needsInitialFetch) fetchTotalEpisodes(list, false);
+  }, [list, fetchTotalEpisodes]);
 
   const clearList = () => {
     if (window.confirm("Purge collection database? All tracking for saved titles will be removed.")) {
-      localStorage.setItem('watchlist', '[]');
-      localStorage.removeItem('watchlist_meta_cache');
+      writeJSON('watchlist', []);
+      removeKey('watchlist_meta_cache');
       setList([]);
       setMetaCache({});
       showToast("Watchlist purged");

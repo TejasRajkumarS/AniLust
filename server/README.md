@@ -1,11 +1,9 @@
 # AniLust Backend Server
 
-A lightweight Node.js/Express proxy for AniLust. In production it proxies
-AniList GraphQL queries so the browser never talks to anilist.co directly
-(centralized CORS + error handling). Streaming itself is provided by a
-self-hosted [aniwatch-api](https://github.com/ghoshRitesh12/aniwatch-api)
-instance configured via `VITE_HIANIME_API_URL` on the frontend (see the
-root README).
+A Node.js/Express proxy for AniLust. It proxies the Aniraku streaming API
+(anime info, episodes, stream resolution) and AniList GraphQL behind
+centralized CORS, rate limiting and error handling, and serves JWT-based
+accounts.
 
 ## Features
 
@@ -49,7 +47,31 @@ curl http://localhost:5000/health
 |----------|---------|-------------|
 | `PORT` | `5000` | Server port |
 | `FRONTEND_URL` | - | Your frontend URL (for CORS) |
+| `NODE_ENV` | `development` | `production` enables the JWT_SECRET hard-fail |
+| `JWT_SECRET` | - | **Required in production.** 32+ random chars |
+| `JWT_EXPIRES_IN` | `7d` | JWT lifetime |
+| `USERS_FILE` | `server/data/users.json` | Where accounts are persisted |
+| `ANIRAKU_BACKEND_URL` | `https://api.aniraku.tech` | Aniraku upstream |
 | `DEBUG` | `true` | Enable debug logging |
+
+## Authentication & Account Persistence
+
+Accounts are stored in a JSON file at `server/data/users.json` (bcrypt password
+hashes — the directory is gitignored, never commit it). Signups are written
+atomically (tmp file + rename) and logins verify against it, so accounts
+survive restarts without external infrastructure. Override the location with
+`USERS_FILE` (e.g. `/var/lib/anilust/users.json`).
+
+To generate a strong secret:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+With `NODE_ENV=production`, the server **refuses to boot** if `JWT_SECRET` is
+missing or left at the built-in default. For multi-instance or replicated
+deploys, swap the file store in `index.js` (`loadUsers`/`saveUsers`) for a
+real database — the auth flow only depends on those two functions.
 
 ## API Endpoints
 

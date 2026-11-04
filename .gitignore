@@ -26,3 +26,6 @@ dist-ssr
 .env.local
 node_modules
 dist
+
+# File-backed user store (contains bcrypt password hashes — never commit)
+server/data/

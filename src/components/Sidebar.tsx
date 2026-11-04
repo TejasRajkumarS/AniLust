@@ -47,9 +47,8 @@ const Sidebar: React.FC = () => {
         <div className="p-4 mt-auto space-y-4">
           <div className="hidden lg:block bg-gradient-to-br from-primary/20 to-transparent rounded-3xl p-6 border border-primary/20 relative overflow-hidden group">
             <div className="relative z-10">
-              <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Elite Node</p>
-              <p className="text-[11px] text-slate-400 mb-4 leading-relaxed font-bold">Access 4K Neural Streams</p>
-              <button className="w-full bg-primary text-white text-[10px] font-black py-3 rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 uppercase tracking-widest">Upgrade</button>
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Free Node</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed font-bold">1080p streams included — no account required.</p>
             </div>
           </div>
         </div>

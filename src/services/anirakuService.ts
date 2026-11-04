@@ -207,10 +207,15 @@ export const anirakuService = {
   getRelations: async (id: string | number): Promise<SearchResult> => {
     requireBackend('Related anime');
     const data = await fetchJson(`${API_CONFIG.aniraku}/anime/${id}/relations`);
+    // Upstream returns a MediaConnection: { edges: [{ relationType, node }] }.
+    // Fall back to data.media for forward-compat with a plain media list.
+    const nodes = Array.isArray(data?.edges)
+      ? data.edges.map((e: any) => e?.node).filter(Boolean)
+      : Array.isArray(data?.media) ? data.media : [];
     return {
       currentPage: 1,
       hasNextPage: false,
-      results: (data.media || []).map(mapAnirakuSearchToAnime),
+      results: nodes.map(mapAnirakuSearchToAnime),
     };
   },
 
@@ -396,15 +401,21 @@ export const anirakuService = {
     }));
   },
 
-  // GET /api/v1/proxy — build proxy URL for HLS (via backend proxy)
-  buildProxyUrl: (mediaUrl: string): string => {
-    requireBackend('HLS proxy');
-    return `${API_CONFIG.aniraku}/proxy?url=${encodeURIComponent(mediaUrl)}`;
+  // GET /api/v1/proxy — build proxy URL for media files. Pass the stream's
+  // `headers` (e.g. { Referer: ... }) so CDNs that reject hot-linking answer.
+  buildProxyUrl: (mediaUrl: string, headers?: Record<string, string>): string => {
+    requireBackend('Media proxy');
+    const params = new URLSearchParams({ url: mediaUrl });
+    if (headers && Object.keys(headers).length > 0) {
+      params.set('headers', JSON.stringify(headers));
+    }
+    return `${API_CONFIG.aniraku}/proxy?${params.toString()}`;
   },
 
   // Health check (backend /health)
   healthCheck: async () => {
-    const res = await fetch(`${API_CONFIG.health || requireBackend('Health check')}/health`);
+    requireBackend('Health check');
+    const res = await fetch(API_CONFIG.health);
     return res.json();
   },
 

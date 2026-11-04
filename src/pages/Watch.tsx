@@ -3,6 +3,8 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import Hls from 'hls.js';
 import { anirakuService } from '../services/anirakuService';
 import { Anime, StreamData } from '../types';
+import { API_CONFIG, ANIRAKU_PROXY_BASE } from '../config/api';
+import { readJSON, writeJSON } from '../utils/storage';
 
 const Watch: React.FC = () => {
   const { episodeId } = useParams<{ episodeId: string }>();
@@ -12,7 +14,8 @@ const Watch: React.FC = () => {
 
   const animeId = animeIdParam ? parseInt(animeIdParam, 10) : 0;
   const episodeMatch = episodeId?.match(/-ep-(\d+)$/);
-  const episodeNumber = episodeMatch ? parseInt(episodeMatch[1], 10) : parseInt(episodeId || '1', 10);
+  const parsedEpisode = episodeMatch ? parseInt(episodeMatch[1], 10) : parseInt(episodeId || '1', 10);
+  const episodeNumber = Number.isFinite(parsedEpisode) ? parsedEpisode : 1;
 
   const [anime, setAnime] = useState<Anime | null>(null);
   const [stream, setStream] = useState<StreamData | null>(null);
@@ -43,11 +46,11 @@ const Watch: React.FC = () => {
       setStream(data);
 
       // Save to watch history
-      const history = JSON.parse(localStorage.getItem('anime_history') || '{}');
+      const history = readJSON<Record<string, string[]>>('anime_history', {});
       const watched = history[animeId] || [];
-      if (!watched.includes(episodeId)) {
-        history[animeId] = [...watched, episodeId];
-        localStorage.setItem('anime_history', JSON.stringify(history));
+      if (!watched.includes(episodeId as string)) {
+        history[animeId] = [...watched, episodeId as string];
+        writeJSON('anime_history', history);
       }
     } catch (err) {
       console.error('[Watch] Stream failed:', err);
@@ -115,6 +118,24 @@ const Watch: React.FC = () => {
   const titleText = typeof anime?.title === 'string' ? anime.title : anime?.title?.english || anime?.title?.romaji || 'Episode';
   const currentEp = anime?.episodes?.find(e => e.id === episodeId);
 
+  // Caption files 403 without the Referer header the stream provider sets, and
+  // browsers cannot attach it to a cross-origin <track> request. Route them
+  // through a proxy that forwards the stream's headers upstream — ours when a
+  // backend is configured, otherwise Aniraku's own public proxy (which answers
+  // cross-origin GETs with access-control-allow-origin: *).
+  const subtitleUrl = (raw: string): string => {
+    const params = new URLSearchParams({ url: raw });
+    if (stream?.headers && Object.keys(stream.headers).length > 0) {
+      params.set('headers', JSON.stringify(stream.headers));
+    }
+    try {
+      if (API_CONFIG.aniraku) return `${API_CONFIG.aniraku}/proxy?${params.toString()}`;
+      return `${ANIRAKU_PROXY_BASE}/api/v1/proxy?${params.toString()}`;
+    } catch {
+      return raw;
+    }
+  };
+
   return (
     <div className="relative w-full h-screen bg-black flex flex-col group overflow-hidden select-none">
       <div className="absolute top-0 left-0 right-0 p-10 flex justify-between items-start bg-gradient-to-b from-black via-black/60 to-transparent z-[100] transition-all duration-700">
@@ -152,7 +173,7 @@ const Watch: React.FC = () => {
             <track
               key={`${sub.url}-${i}`}
               kind="captions"
-              src={sub.url}
+              src={subtitleUrl(sub.url)}
               label={sub.lang || `Track ${i + 1}`}
               srcLang={sub.lang || 'en'}
               default={i === 0}

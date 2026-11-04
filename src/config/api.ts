@@ -24,6 +24,12 @@ const rawBackendUrl = (import.meta.env.VITE_BACKEND_URL || '').trim();
 
 export const BACKEND_URL = rawBackendUrl.replace(/\/+$/, '');
 
+// Same default the backend uses (ANIRAKU_BACKEND_URL server-side). Used for
+// browser-direct media requests in direct mode — the Aniraku proxy answers
+// with `access-control-allow-origin: *`, so Hls.js and <track> captions work
+// cross-origin. Aniraku-dependent *metadata* calls still need the backend.
+export const ANIRAKU_PROXY_BASE = 'https://api.aniraku.tech';
+
 export const API_CONFIG = {
   /** Deployed AniLust backend base URL ('' when not configured). */
   backendUrl: BACKEND_URL,

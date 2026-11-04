@@ -1,9 +1,10 @@
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { anirakuService } from '../services/anirakuService';
 import { Anime } from '../types';
 import AnimeCard from '../components/AnimeCard';
 import { Link } from 'react-router-dom';
+import { readJSON, writeJSON } from '../utils/storage';
 
 interface HomeProps {
   showToast: (msg: string) => void;
@@ -25,17 +26,22 @@ const Home: React.FC<HomeProps> = () => {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
 
   useEffect(() => {
-    const cachedTrending = localStorage.getItem('cache_trending_v2');
-    const cachedRecent = localStorage.getItem('cache_recent_v2');
-    if (cachedTrending) setTrending(JSON.parse(cachedTrending));
-    if (cachedRecent) setRecent(JSON.parse(cachedRecent));
+    const cachedTrending = readJSON<Anime[]>('cache_trending_v2', []);
+    const cachedRecent = readJSON<Anime[]>('cache_recent_v2', []);
+    if (cachedTrending.length) setTrending(cachedTrending);
+    if (cachedRecent.length) setRecent(cachedRecent);
   }, []);
+
+  // Ref mirror so fetchData can decide on the spinner without depending on
+  // trending.length (which would retrigger the mount effect after every fetch).
+  const trendingCountRef = useRef(0);
+  trendingCountRef.current = trending.length;
 
   const fetchData = useCallback(async () => {
     try {
-      if (trending.length === 0) setLoading(true);
+      if (trendingCountRef.current === 0) setLoading(true);
 
-      const history = JSON.parse(localStorage.getItem('anime_history') || '{}');
+      const history = readJSON<Record<string, string[]>>('anime_history', {});
       const historyIds = Object.keys(history).reverse().slice(0, 8);
 
       const [trendingRes, recentRes] = await Promise.allSettled([
@@ -45,12 +51,12 @@ const Home: React.FC<HomeProps> = () => {
 
       if (trendingRes.status === 'fulfilled' && trendingRes.value.results.length > 0) {
         setTrending(trendingRes.value.results);
-        localStorage.setItem('cache_trending_v2', JSON.stringify(trendingRes.value.results));
+        writeJSON('cache_trending_v2', trendingRes.value.results);
       }
 
       if (recentRes.status === 'fulfilled' && recentRes.value.results.length > 0) {
         setRecent(recentRes.value.results);
-        localStorage.setItem('cache_recent_v2', JSON.stringify(recentRes.value.results));
+        writeJSON('cache_recent_v2', recentRes.value.results);
       }
 
       if (historyIds.length > 0) {
@@ -62,7 +68,9 @@ const Home: React.FC<HomeProps> = () => {
             const eps = history[anime.id] || [];
             const lastEpId = eps[eps.length - 1];
             const lastEp = anime.episodes?.find((e: any) => e.id === lastEpId);
-            return { ...anime, lastEp };
+            const totalEps = anime.episodes?.length || 0;
+            const progressPercent = totalEps > 0 ? Math.min(100, Math.round((eps.length / totalEps) * 100)) : null;
+            return { ...anime, lastEp, progressPercent };
           });
         setContinueWatching(watchedData);
       }
@@ -71,7 +79,7 @@ const Home: React.FC<HomeProps> = () => {
     } finally {
       setLoading(false);
     }
-  }, [trending.length]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -191,7 +199,9 @@ const Home: React.FC<HomeProps> = () => {
                     <h4 className="text-white font-black truncate text-xs md:text-sm">{typeof anime.title === 'string' ? anime.title : anime.title.english || anime.title.romaji}</h4>
                     <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">Episode {anime.lastEp?.number || '?'}</p>
                   </div>
-                  <div className="absolute bottom-0 left-0 h-1 bg-primary w-[65%]"></div>
+                  {anime.progressPercent != null && (
+                    <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-700" style={{ width: `${anime.progressPercent}%` }}></div>
+                  )}
                 </Link>
               ))}
             </div>

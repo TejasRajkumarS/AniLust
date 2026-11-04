@@ -3,6 +3,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { Readable } from 'node:stream';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Load environment variables
 // Note: Must be called before other imports that use env vars
@@ -90,7 +94,11 @@ const corsOptions = {
     } else {
       // Log CORS violations for security monitoring
       console.warn(`[CORS] Blocked request from origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'), false);
+      const err = new Error('Origin not allowed by CORS.');
+      err.status = 403;
+      err.code = 'CORS_NOT_ALLOWED';
+      err.expose = true; // safe to surface to the client
+      callback(err, false);
     }
   },
   credentials: true,
@@ -107,8 +115,8 @@ app.options('*', cors(corsOptions));
 // Request Parsing & Logging
 // ============================================================
 
-app.use(express.json({ limit: '15mb' }));
-app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Request logging (sanitized - no sensitive data)
 app.use((req, res, next) => {
@@ -258,15 +266,56 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'anilust-dev-secret-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const USING_DEFAULT_SECRET =
+  !process.env.JWT_SECRET || process.env.JWT_SECRET === 'anilust-dev-secret-change-in-production';
 
-// Warning for demo/development mode
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'anilust-dev-secret-change-in-production') {
+if (IS_PRODUCTION && USING_DEFAULT_SECRET) {
+  console.error(
+    '[SECURITY FATAL] NODE_ENV=production requires a strong JWT_SECRET environment variable. ' +
+    'Refusing to start with the built-in default secret.'
+  );
+  process.exit(1);
+}
+
+if (USING_DEFAULT_SECRET) {
   console.warn('[SECURITY WARNING] JWT_SECRET is using default value. Change JWT_SECRET environment variable for production!');
 }
 
-// Mock user store for demo (replace with database in production)
-// In production, this should connect to PostgreSQL/MongoDB
-const demoUsers = [];
+// File-backed user store so accounts survive restarts without external infra.
+// For multi-instance deployments, swap this for a real database — the
+// signup/login flow only depends on loadUsers/saveUsers.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const USERS_FILE = process.env.USERS_FILE || path.join(__dirname, 'data', 'users.json');
+
+function loadUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+      if (Array.isArray(parsed)) {
+        console.log(`[Auth] Loaded ${parsed.length} account(s) from ${USERS_FILE}`);
+        return parsed;
+      }
+      console.warn(`[Auth] Users file ${USERS_FILE} is not an array — starting with an empty store.`);
+    }
+  } catch (err) {
+    console.error(`[Auth] Failed to read users file (${err.message}) — starting with an empty store.`);
+  }
+  return [];
+}
+
+function saveUsers(users) {
+  try {
+    fs.mkdirSync(path.dirname(USERS_FILE), { recursive: true });
+    const tmp = `${USERS_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(users, null, 2));
+    fs.renameSync(tmp, USERS_FILE); // atomic on the same filesystem
+  } catch (err) {
+    console.error(`[Auth] Failed to persist users to ${USERS_FILE}: ${err.message}`);
+  }
+}
+
+const demoUsers = loadUsers();
 
 /**
  * POST /api/auth/signup
@@ -300,8 +349,7 @@ app.post('/api/auth/signup', async (req, res) => {
       });
     }
 
-    // Check if user exists (in real production, query database here)
-    // Note: localStorage is browser-only, use in-memory store for demo
+    // Check if user exists. Queries the file-backed store (see loadUsers).
     const existingUser = demoUsers.find(u => u.email === email);
 
     if (existingUser) {
@@ -327,6 +375,7 @@ app.post('/api/auth/signup', async (req, res) => {
     };
 
     demoUsers.push(newUser);
+    saveUsers(demoUsers);
 
     // Generate JWT token
     const token = jwt.sign(
@@ -373,9 +422,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Find user - in production this should query a database
-    // For this demo, we'll check the in-memory store and fall back to checking
-    // if we need to support existing demo accounts (for migration purposes)
+    // Find user in the file-backed store.
     const user = demoUsers.find(u => u.email === email);
 
     if (!user) {
@@ -505,6 +552,17 @@ export function requireAuth(req, res, next) {
 
 const ANIRAKU_BASE = process.env.ANIRAKU_BACKEND_URL || 'https://api.aniraku.tech';
 
+// AniList/Aniraku IDs are numeric — reject anything else before it reaches the
+// upstream URL path (prevents encoded-path traversal like /anime/..%2F..%2Fx).
+function parseNumericId(raw) {
+  const id = String(raw ?? '');
+  return /^\d{1,10}$/.test(id) ? id : null;
+}
+
+function isFiniteNumber(value) {
+  return value !== undefined && value !== null && Number.isFinite(Number(value));
+}
+
 // The Aniraku API sits behind Cloudflare, which blocks requests without a
 // browser-like User-Agent (it answers with an HTML challenge page and the
 // JSON parse fails). Always send these headers and validate the response.
@@ -531,6 +589,9 @@ async function fetchAniraku(url, options = {}) {
 app.post('/api/aniraku/stream', async (req, res) => {
   try {
     const { animeId, episode, lang, provider, refresh } = req.body;
+    if (!isFiniteNumber(animeId) || !isFiniteNumber(episode)) {
+      return res.status(400).json({ error: 'animeId and episode are required and must be numbers.' });
+    }
     const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -549,6 +610,9 @@ app.post('/api/aniraku/stream', async (req, res) => {
 app.get('/api/aniraku/servers', async (req, res) => {
   try {
     const { animeId, episode, lang } = req.query;
+    if (!isFiniteNumber(animeId) || !isFiniteNumber(episode)) {
+      return res.status(400).json({ error: 'animeId and episode query parameters are required and must be numbers.' });
+    }
     const url = new URL(`${ANIRAKU_BASE}/api/v1/servers`);
     url.searchParams.set('animeId', String(animeId));
     url.searchParams.set('episode', String(episode));
@@ -566,7 +630,8 @@ app.get('/api/aniraku/servers', async (req, res) => {
 // Proxy: GET /api/v1/anime/{id}
 app.get('/api/aniraku/anime/:id', async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseNumericId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid anime id — expected a numeric id.' });
     const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/anime/${id}`);
     if (!response.ok) {
       return res.status(response.status).json({ error: `Aniraku API returned ${response.status}.` });
@@ -583,7 +648,8 @@ app.get('/api/aniraku/anime/:id', async (req, res) => {
 // Proxy: GET /api/v1/anime/{id}/episodes
 app.get('/api/aniraku/anime/:id/episodes', async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseNumericId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid anime id — expected a numeric id.' });
     const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/anime/${id}/episodes`);
     if (!response.ok) {
       return res.status(response.status).json({ error: `Aniraku API returned ${response.status}.` });
@@ -594,6 +660,47 @@ app.get('/api/aniraku/anime/:id/episodes', async (req, res) => {
     console.error('[Aniraku Episodes Proxy Error]', err);
     const status = err.name === 'AbortError' ? 504 : 500;
     res.status(status).json({ error: 'Failed to proxy episodes request to Aniraku.' });
+  }
+});
+
+// Proxy: GET /api/v1/anime/{id}/similar
+app.get('/api/aniraku/anime/:id/similar', async (req, res) => {
+  try {
+    const id = parseNumericId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid anime id — expected a numeric id.' });
+    const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
+    const perPage = Math.min(50, Math.max(1, parseInt(String(req.query.perPage), 10) || 12));
+    const url = new URL(`${ANIRAKU_BASE}/api/v1/anime/${id}/similar`);
+    url.searchParams.set('page', String(page));
+    url.searchParams.set('perPage', String(perPage));
+    const response = await fetchAniraku(url.toString());
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Aniraku API returned ${response.status}.` });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('[Aniraku Similar Proxy Error]', err);
+    const status = err.name === 'AbortError' ? 504 : 500;
+    res.status(status).json({ error: 'Failed to proxy similar request to Aniraku.' });
+  }
+});
+
+// Proxy: GET /api/v1/anime/{id}/relations
+app.get('/api/aniraku/anime/:id/relations', async (req, res) => {
+  try {
+    const id = parseNumericId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid anime id — expected a numeric id.' });
+    const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/anime/${id}/relations`);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Aniraku API returned ${response.status}.` });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('[Aniraku Relations Proxy Error]', err);
+    const status = err.name === 'AbortError' ? 504 : 500;
+    res.status(status).json({ error: 'Failed to proxy relations request to Aniraku.' });
   }
 });
 
@@ -618,18 +725,81 @@ app.post('/api/aniraku/anilist', async (req, res) => {
   }
 });
 
+// Headers the Aniraku upstream proxy accepts as its own `headers` query
+// param. Used by CDNs that reject media requests without a Referer (e.g.
+// megaplay-backed streams and their VTT caption files).
+const PROXY_HEADERS_ALLOWLIST = new Set(['Referer', 'Origin', 'User-Agent']);
+
+// Parse and validate the optional `headers` query param (a JSON object such
+// as {"Referer":"https://example.com/"}). Returns { ok, value } where value
+// is undefined when the param was absent.
+function parseProxyHeaders(raw) {
+  if (raw === undefined) return { ok: true, value: undefined };
+  const text = String(raw);
+  if (text.length > 1024) return { ok: false };
+  try {
+    const parsed = JSON.parse(text);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { ok: false };
+    const clean = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (!PROXY_HEADERS_ALLOWLIST.has(key)) return { ok: false };
+      if (typeof value !== 'string' || value.length > 256 || /[\r\n]/.test(value)) return { ok: false };
+      clean[key] = value;
+    }
+    return { ok: true, value: clean };
+  } catch {
+    return { ok: false };
+  }
+}
+
 // Proxy: GET /api/v1/proxy
+// Streams upstream media (HLS playlists, .ts segments, WebVTT captions) back
+// to the browser. The upstream response is NOT JSON, so the body is piped
+// through verbatim with the upstream Content-Type instead of being parsed.
 app.get('/api/aniraku/proxy', async (req, res) => {
   try {
-    const { url } = req.query;
-    const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/proxy?url=${encodeURIComponent(String(url))}`);
-    if (!response.ok) {
-      return res.status(response.status).json({ error: `Aniraku API returned ${response.status}.` });
+    const { url, headers } = req.query;
+
+    let target;
+    try {
+      target = new URL(String(url ?? ''));
+      if (target.protocol !== 'http:' && target.protocol !== 'https:') throw new Error('unsupported protocol');
+    } catch {
+      return res.status(400).json({ error: 'A valid absolute http(s) "url" query parameter is required.' });
     }
-    const data = await response.json();
-    res.json(data);
+
+    const parsedHeaders = parseProxyHeaders(headers);
+    if (!parsedHeaders.ok) {
+      return res.status(400).json({ error: 'Invalid "headers" parameter. Expected a JSON object with Referer/Origin/User-Agent string values.' });
+    }
+
+    const upstreamQuery = new URLSearchParams({ url: target.toString() });
+    if (parsedHeaders.value) upstreamQuery.set('headers', JSON.stringify(parsedHeaders.value));
+
+    const response = await fetchAniraku(`${ANIRAKU_BASE}/api/v1/proxy?${upstreamQuery.toString()}`);
+    res.status(response.status);
+    const contentType = response.headers.get('content-type');
+    if (contentType) res.setHeader('Content-Type', contentType);
+    const cacheControl = response.headers.get('cache-control');
+    if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+
+    if (!response.body) {
+      res.end();
+      return;
+    }
+    Readable.fromWeb(response.body)
+      .on('error', (streamErr) => {
+        console.error('[Aniraku Proxy Stream Error]', streamErr);
+        if (!res.headersSent) res.status(502);
+        res.destroy();
+      })
+      .pipe(res);
   } catch (err) {
     console.error('[Aniraku Proxy Proxy Error]', err);
+    if (res.headersSent) {
+      res.destroy();
+      return;
+    }
     const status = err.name === 'AbortError' ? 504 : 500;
     res.status(status).json({ error: 'Failed to proxy proxy request to Aniraku.' });
   }
@@ -641,6 +811,14 @@ app.get('/api/aniraku/proxy', async (req, res) => {
 
 // Catch unhandled errors
 app.use((err, req, res, next) => {
+  const status = Number.isInteger(err.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
+
+  if (err.expose) {
+    // Expected, client-representable error (e.g. CORS rejection) — not a server fault.
+    console.warn(`[Client Error ${status}] ${err.message} - ${req.method} ${req.url}`);
+    return res.status(status).json({ error: err.message, code: err.code || 'CLIENT_ERROR' });
+  }
+
   console.error('[Server Error]', {
     message: err.message,
     stack: err.stack,
@@ -650,7 +828,7 @@ app.use((err, req, res, next) => {
   });
 
   // Don't leak internal error details to clients
-  res.status(err.status || 500).json({
+  res.status(status).json({
     error: 'An internal server error occurred.',
     code: 'INTERNAL_ERROR',
     // Only include message in development mode

@@ -59,11 +59,13 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime, variant = 'vertical', prog
           onError={() => setImageError(true)}
         />
 
-        {/* Rating Overlay */}
-        <div className="absolute top-2 left-2 md:top-3 md:left-3 px-2 py-0.5 md:px-2.5 md:py-1 bg-black/60 backdrop-blur-xl rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black text-white flex items-center gap-1 border border-white/10">
-          <span className="material-symbols-outlined text-[12px] md:text-[14px] text-yellow-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-          {anime.rating ? (anime.rating / 10).toFixed(1) : '8.5'}
-        </div>
+        {/* Rating Overlay — only when Aniraku/AniList returned a real score */}
+        {anime.rating != null && anime.rating > 0 && (
+          <div className="absolute top-2 left-2 md:top-3 md:left-3 px-2 py-0.5 md:px-2.5 md:py-1 bg-black/60 backdrop-blur-xl rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black text-white flex items-center gap-1 border border-white/10">
+            <span className="material-symbols-outlined text-[12px] md:text-[14px] text-yellow-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+            {(anime.rating / 10).toFixed(1)}
+          </div>
+        )}
 
         {/* Play Icon for TV/Hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center">
