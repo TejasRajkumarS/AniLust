@@ -52,6 +52,10 @@ const Watch: React.FC = () => {
         history[animeId] = [...watched, episodeId as string];
         writeJSON('anime_history', history);
       }
+      const animeIdKey = String(animeId);
+      const historyOrder = readJSON<string[]>('anime_history_order', []).filter(id => id !== animeIdKey);
+      historyOrder.unshift(animeIdKey);
+      writeJSON('anime_history_order', historyOrder);
     } catch (err) {
       console.error('[Watch] Stream failed:', err);
       setStream(null);

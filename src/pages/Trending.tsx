@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { anirakuService } from '../services/anirakuService';
 import { Anime } from '../types';
 import AnimeCard from '../components/AnimeCard';
@@ -18,8 +18,13 @@ const Trending: React.FC = () => {
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
+  // Ref mirror of `loading`: two rapid loadMore clicks both see the stale
+  // `loading === false` closure value and would fetch the same page twice.
+  const loadingRef = useRef(false);
 
   const fetchTrending = async (pageNum: number) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     try {
       setLoading(true);
       setError(false);
@@ -35,6 +40,7 @@ const Trending: React.FC = () => {
       console.error(err);
       setError(true);
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   };
@@ -44,7 +50,7 @@ const Trending: React.FC = () => {
   }, []);
 
   const loadMore = () => {
-    if (loading || !hasNextPage) return;
+    if (loadingRef.current || !hasNextPage) return;
     const next = page + 1;
     setPage(next);
     fetchTrending(next);

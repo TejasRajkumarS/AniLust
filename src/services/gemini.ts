@@ -1,7 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Always use a named parameter for the API key from import.meta.env.VITE_GEMINI_API_KEY.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+// Constructed lazily: the SDK throws "API key must be set when using the
+// Gemini API." at construction time, and this module is dynamically imported.
+// A module-level throw would reject that import on every AI-feature route;
+// building on demand lets a missing key degrade to a null response instead.
+let aiClient: GoogleGenAI | null = null;
+
+function getClient(): GoogleGenAI | null {
+  if (aiClient) return aiClient;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) return null;
+  aiClient = new GoogleGenAI({ apiKey });
+  return aiClient;
+}
 
 export interface GroundingSource {
   title: string;
@@ -15,6 +26,11 @@ export interface AIResponse<T> {
 
 export const geminiService = {
   getAnimeInsight: async (title: string): Promise<AIResponse<{ hook: string, similar: string[] }> | null> => {
+    const ai = getClient();
+    if (!ai) {
+      console.warn("Gemini insight skipped: VITE_GEMINI_API_KEY is not configured.");
+      return null;
+    }
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -53,6 +69,11 @@ export const geminiService = {
   },
 
   discoverAnime: async (prompt: string): Promise<AIResponse<{ title: string, reason: string }[]> | null> => {
+    const ai = getClient();
+    if (!ai) {
+      console.warn("Discovery skipped: VITE_GEMINI_API_KEY is not configured.");
+      return null;
+    }
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',

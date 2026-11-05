@@ -42,7 +42,14 @@ const Home: React.FC<HomeProps> = () => {
       if (trendingCountRef.current === 0) setLoading(true);
 
       const history = readJSON<Record<string, string[]>>('anime_history', {});
-      const historyIds = Object.keys(history).reverse().slice(0, 8);
+      // Integer-like keys ("16498") iterate in ascending numeric order, not
+      // insertion order, so Object.keys().reverse() would sort by anime ID.
+      // Watch.tsx maintains anime_history_order as most-recent-first instead.
+      const historyOrder = readJSON<string[]>('anime_history_order', []);
+      const historyIds = (historyOrder.length > 0
+        ? historyOrder
+        : Object.keys(history).reverse()
+      ).filter(key => (history[key] || []).length > 0).slice(0, 8);
 
       const [trendingRes, recentRes] = await Promise.allSettled([
         anirakuService.getTrending(1),
