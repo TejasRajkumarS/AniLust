@@ -22,7 +22,7 @@
 
 **AniLust** is a high-performance anime discovery platform built for the modern anime community.
 
-Designed with a focus on **minimalist UX**, **real-time data fetching**, and a **cinema-first interface**, AniLust provides a centralized hub for discovering, searching, and managing anime titles.
+Designed with a focus on **minimaist UX**, **real-time data fetching**, and a **cinema-first interface**, AniLust provides a centralized hub for discovering, searching, and managing anime titles.
 
 The application combines AniList metadata with a modern React interface, intelligent search, personalized libraries, AI-powered insights, and optional streaming support.
 
