@@ -176,10 +176,10 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
     try {
       const refreshed = await anirakuService.getInfo(anime.id);
       setAnime(refreshed);
-      if (refreshed.episodes && refreshed.episodes.length > 0) {
-        const nextEp = refreshed.episodes.find(ep => !watchHistory.includes(ep.id)) || refreshed.episodes[0];
-        navigate(`/watch/${encodeURIComponent(nextEp.id)}?animeId=${anime.id}`);
-      } else { showToast("No active stream signal found."); }
+        if (refreshed.episodes && refreshed.episodes.length > 0) {
+          const nextEp = refreshed.episodes.find(ep => !watchHistory.includes(ep.id)) || refreshed.episodes[0];
+          navigate(`/watch/${encodeURIComponent(nextEp.id)}?animeId=${anime.id}`);
+        } else { showToast("No episodes available — playback requires the AniLust backend."); }
     } catch (err) { showToast("Sync error."); } finally { setIsSyncingEpisodes(false); }
   };
 
@@ -309,6 +309,15 @@ const AnimeDetails: React.FC<{ showToast: (msg: string) => void }> = ({ showToas
                   </div>
                 </Link>
               ))}
+              {!anime.episodes?.length && (
+                <div className="md:col-span-2 flex flex-col items-center text-center py-14 border border-dashed border-white/10 rounded-[2rem]">
+                  <span className="material-symbols-outlined text-4xl text-slate-600 mb-3">video_library_off</span>
+                  <p className="text-slate-400 font-black uppercase tracking-widest text-xs mb-2">Episode list unavailable</p>
+                  <p className="text-slate-600 max-w-sm text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+                    Metadata is shown from AniList. Episode lists and playback require the AniLust backend — start it (server/) and reload.
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         </div>

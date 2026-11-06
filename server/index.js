@@ -70,9 +70,14 @@ function getAllowedOrigins() {
     'http://127.0.0.1:5173',
   ];
 
-  // Add frontend URL from environment
+  // Add frontend URL(s) from environment. Comma-separated list is supported
+  // so setups running several dev instances (e.g. :3000 and :3001) both pass.
   if (process.env.FRONTEND_URL) {
-    origins.push(process.env.FRONTEND_URL);
+    process.env.FRONTEND_URL
+      .split(',')
+      .map(url => url.trim())
+      .filter(Boolean)
+      .forEach(url => origins.push(url));
   }
 
   // Add GitHub Pages production URL (update accordingly for your deployment)

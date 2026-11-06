@@ -101,19 +101,23 @@ const Watchlist: React.FC<WatchlistProps> = ({ showToast }) => {
           if (info && info.episodes) {
             const currentTotal = info.episodes.length;
             const oldTotal = updatedMeta[anime.id]?.totalEpisodes || 0;
-            
-            if (oldTotal > 0 && currentTotal > oldTotal) {
-              newEpisodesFoundCount++;
-            }
 
-            updatedMeta[anime.id] = {
-              totalEpisodes: currentTotal,
-              episodes: info.episodes,
-              lastUpdated: Date.now(),
-              status: info.status || anime.status
-            };
-            
-            setMetaCache(prev => ({ ...prev, [anime.id]: updatedMeta[anime.id] }));
+            // A degraded info response (backend down → AniList fallback has no
+            // episode list) must not wipe a previously synced non-zero total.
+            if (currentTotal > 0 || oldTotal === 0) {
+              if (oldTotal > 0 && currentTotal > oldTotal) {
+                newEpisodesFoundCount++;
+              }
+
+              updatedMeta[anime.id] = {
+                totalEpisodes: currentTotal,
+                episodes: info.episodes,
+                lastUpdated: Date.now(),
+                status: info.status || anime.status
+              };
+
+              setMetaCache(prev => ({ ...prev, [anime.id]: updatedMeta[anime.id] }));
+            }
           }
         } catch (err) {
           console.error(`Sync error:`, err);

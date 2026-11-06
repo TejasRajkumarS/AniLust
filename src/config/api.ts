@@ -30,6 +30,9 @@ export const BACKEND_URL = rawBackendUrl.replace(/\/+$/, '');
 // cross-origin. Aniraku-dependent *metadata* calls still need the backend.
 export const ANIRAKU_PROXY_BASE = 'https://api.aniraku.tech';
 
+/** Direct AniList GraphQL endpoint (CORS-enabled, callable without backend). */
+export const ANILIST_GRAPHQL_URL = 'https://graphql.anilist.co';
+
 export const API_CONFIG = {
   /** Deployed AniLust backend base URL ('' when not configured). */
   backendUrl: BACKEND_URL,

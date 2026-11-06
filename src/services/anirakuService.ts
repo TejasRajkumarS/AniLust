@@ -1,5 +1,5 @@
 import { Anime, SearchResult, Episode, StreamData, EpisodeServer } from '../types';
-import { API_CONFIG, requireBackend } from '../config/api';
+import { API_CONFIG, BACKEND_URL, ANILIST_GRAPHQL_URL, requireBackend } from '../config/api';
 
 interface AnirakuAnimeRecord {
   id: number;
@@ -161,25 +161,127 @@ async function fetchJson(url: string, options: RequestInit = {}): Promise<any> {
   return res.json();
 }
 
+// "Failed to fetch" is the browser's generic TypeError for any network-level
+// failure (connection refused, DNS, CORS). Translate it into an actionable
+// message instead of surfacing the raw string on the error screen.
+function describeFailure(err: unknown): string {
+  if (err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(String(err))) {
+    const target = BACKEND_URL || 'the AniLust backend';
+    return `Cannot reach the backend at ${target}. Start it with "npm start" inside server/, or unset VITE_BACKEND_URL to browse in direct mode.`;
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
+// Backend-less metadata fallback. Aniraku is CORS-blocked and must go through
+// the backend, but AniList GraphQL is callable directly — so when the backend
+// is down or unconfigured, load anime metadata from AniList instead of dying.
+// Episode lists / playback still require the backend (episodes: [] here).
+const ANILIST_MEDIA_QUERY = `
+  query ($id: Int) {
+    Media(id: $id, type: ANIME) {
+      id
+      title { romaji english native }
+      synonyms
+      description
+      format
+      status
+      episodes
+      genres
+      averageScore
+      seasonYear
+      coverImage { extraLarge large }
+      bannerImage
+      trailer { id site thumbnail }
+    }
+  }
+`;
+
+function mapAnilistMediaToAnime(media: any): Anime {
+  return {
+    id: media.id.toString(),
+    title: {
+      english: media.title?.english || media.title?.romaji || 'Unknown',
+      romaji: media.title?.romaji || 'Unknown',
+      native: media.title?.native || 'Unknown',
+    },
+    synonyms: media.synonyms || [],
+    image: media.coverImage?.extraLarge || media.coverImage?.large || '',
+    cover: media.bannerImage || media.coverImage?.extraLarge || '',
+    description: media.description || '',
+    status: media.status || 'UNKNOWN',
+    releaseDate: media.seasonYear ? `${media.seasonYear}` : undefined,
+    genres: media.genres || [],
+    rating: media.averageScore || 0,
+    type: media.format || 'TV',
+    episodes: [],
+    totalEpisodes: 0,
+    trailer: media.trailer ? {
+      id: media.trailer.id,
+      site: media.trailer.site,
+      thumbnail: media.trailer.thumbnail,
+    } : undefined,
+  };
+}
+
+async function fetchAnilistInfoFallback(id: string | number): Promise<Anime> {
+  const mediaId = parseInt(String(id), 10);
+  if (!Number.isFinite(mediaId)) throw new Error(`Invalid anime id: ${id}`);
+  try {
+    const res = await fetch(ANILIST_GRAPHQL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query: ANILIST_MEDIA_QUERY, variables: { id: mediaId } }),
+    });
+    if (!res.ok) throw new Error(`AniList request failed: ${res.status}`);
+    const json = await res.json();
+    if (json.errors) throw new Error(json.errors[0]?.message || 'AniList error');
+    if (!json.data?.Media) throw new Error('Anime not found on AniList');
+    return mapAnilistMediaToAnime(json.data.Media);
+  } catch (err) {
+    throw new Error(describeFailure(err));
+  }
+}
+
 export const anirakuService = {
   // ========== CATALOG ==========
 
-  // GET /api/v1/anime/{id} — full anime info + episodes (via backend proxy)
+  // GET /api/v1/anime/{id} — full anime info + episodes (via backend proxy).
+  // Falls back to direct AniList GraphQL metadata when the backend is
+  // unreachable or unconfigured, so details pages degrade instead of dying
+  // (episodes/playback still need the backend). Fallback results are not
+  // cached, so recovery is instant once the backend is back.
   getInfo: async (id: string | number): Promise<Anime> => {
-    return getCached(`aniraku-info-${id}`, async () => {
-      requireBackend('Anime details');
-      const [animeRes, episodesRes] = await Promise.allSettled([
-        fetchJson(`${API_CONFIG.aniraku}/anime/${id}`),
-        fetchJson(`${API_CONFIG.aniraku}/anime/${id}/episodes`),
-      ]);
+    let backendError: unknown;
+    try {
+      return await getCached(`aniraku-info-${id}`, async () => {
+        requireBackend('Anime details');
+        const [animeRes, episodesRes] = await Promise.allSettled([
+          fetchJson(`${API_CONFIG.aniraku}/anime/${id}`),
+          fetchJson(`${API_CONFIG.aniraku}/anime/${id}/episodes`),
+        ]);
 
-      if (animeRes.status === 'rejected') {
-        throw new Error(`Anime info failed: ${animeRes.reason.message}`);
-      }
+        if (animeRes.status === 'rejected') {
+          throw new Error(describeFailure(animeRes.reason));
+        }
 
-      const episodes = episodesRes.status === 'fulfilled' ? (episodesRes.value.episodes || []) : [];
-      return mapAnirakuToAnime(animeRes.value, episodes);
-    });
+        const episodes = episodesRes.status === 'fulfilled' ? (episodesRes.value.episodes || []) : [];
+        return mapAnirakuToAnime(animeRes.value, episodes);
+      });
+    } catch (err) {
+      backendError = err;
+    }
+
+    try {
+      return await fetchAnilistInfoFallback(id);
+    } catch (fallbackErr) {
+      const fallbackError = fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr));
+      // Prefer the AniList verdict for unknown ids (backend 404), and its
+      // error when no backend is configured. Otherwise the backend error is
+      // the actionable one ("start the server").
+      const preferFallback = !backendError
+        || (backendError instanceof Error && /\b404\b/.test(backendError.message));
+      throw preferFallback ? fallbackError : backendError;
+    }
   },
 
   // GET /api/v1/anime/{id}/episodes (via backend proxy)
